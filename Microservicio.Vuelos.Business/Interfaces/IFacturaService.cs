@@ -1,0 +1,17 @@
+using Microservicio.Vuelos.Business.DTOs.Factura;
+using Microservicio.Vuelos.DataManagement.Models;
+
+namespace Microservicio.Vuelos.Business.Interfaces;
+
+public interface IFacturaService
+{
+    Task<DataPagedResult<FacturaResponseDto>> GetPagedAsync(FacturaFilterDto filter);
+
+    Task<FacturaResponseDto?> GetByIdAsync(int idFactura, int? idClienteDelToken, string rolDelToken);
+
+    Task<FacturaResponseDto> CreateAsync(FacturaRequestDto request, string creadoPorUsuario);
+
+    Task<FacturaResponseDto?> UpdateEstadoAsync(int idFactura, FacturaUpdateRequestDto request, string modificadoPorUsuario);
+
+    Task<bool> DeleteAsync(int idFactura, string modificadoPorUsuario);
+}
