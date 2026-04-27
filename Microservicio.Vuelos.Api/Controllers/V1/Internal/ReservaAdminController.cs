@@ -47,9 +47,25 @@ public class ReservaAdminController : ControllerBase
         return Ok(ApiResponse<ReservaResponseDto>.Ok(result));
     }
 
-    // PATCH /estado ? Solo ADMINISTRADOR y AEROLINEA cambian estado
+    // POST ? Crear reserva (internal) segun contrato
+    [HttpPost]
+    [Authorize(Roles = "ADMINISTRADOR,AEROLINEA,CLIENTE")]
+    [ProducesResponseType(typeof(ApiResponse<ReservaResponseDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ApiResponse<ReservaResponseDto>>> Create([FromBody] ReservaRequestDto request)
+    {
+        var result = await _reservaService.CreateAsync(request, GetUsuario());
+
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id_reserva = result.IdReserva, version = "1" },
+            ApiResponse<ReservaResponseDto>.Ok(result, "Reserva creada correctamente."));
+    }
+
+    // PATCH /estado ? ADMINISTRADOR, AEROLINEA y CLIENTE (propio) cambian estado
     [HttpPatch("{id_reserva:int}/estado")]
-    [Authorize(Roles = "ADMINISTRADOR,AEROLINEA")]
+    [Authorize(Roles = "ADMINISTRADOR,AEROLINEA,CLIENTE")]
     [ProducesResponseType(typeof(ApiResponse<ReservaResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]

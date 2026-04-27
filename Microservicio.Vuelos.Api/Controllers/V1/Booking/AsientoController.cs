@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microservicio.Vuelos.Api.Model.Common;
 using Microservicio.Vuelos.Business.DTOs.Asiento;
+using Microservicio.Vuelos.Business.DTOs.Reserva;
 using Microservicio.Vuelos.Business.Interfaces;
+using Microservicio.Vuelos.DataManagement.Models;
 
 namespace Microservicio.Vuelos.Api.Controllers.V1.Booking;
 
@@ -16,10 +18,14 @@ namespace Microservicio.Vuelos.Api.Controllers.V1.Booking;
 public class AsientoController : ControllerBase
 {
     private readonly IAsientoService _asientoService;
+    private readonly IReservaService _reservaService;
 
-    public AsientoController(IAsientoService asientoService)
+    public AsientoController(
+        IAsientoService asientoService,
+        IReservaService reservaService)
     {
         _asientoService = asientoService;
+        _reservaService = reservaService;
     }
 
     // GET � Listar asientos de un vuelo
@@ -30,6 +36,33 @@ public class AsientoController : ControllerBase
     {
         filter.IdVuelo = id_vuelo; // ? forzar filtro por vuelo
         var result = await _asientoService.GetPagedAsync(filter);
+
+        if (GetRol() == "CLIENTE")
+        {
+            var reservasVuelo = await _reservaService.GetPagedAsync(new ReservaFilterDto
+            {
+                IdVuelo = id_vuelo,
+                Page = 1,
+                PageSize = 200
+            });
+
+            var asientosReservadosActivos = reservasVuelo.Items
+                .Where(r => r.EstadoReserva is "PEN" or "CON" or "EMI")
+                .Select(r => r.IdAsiento)
+                .ToHashSet();
+
+            var itemsFiltrados = result.Items
+                .Where(a => !asientosReservadosActivos.Contains(a.IdAsiento))
+                .ToList();
+
+            result = new DataPagedResult<AsientoResponseDto>
+            {
+                Items = itemsFiltrados,
+                PageNumber = result.PageNumber,
+                PageSize = result.PageSize,
+                TotalRecords = itemsFiltrados.Count
+            };
+        }
 
         return Ok(ApiResponse<object>.Ok(result, "Asientos del vuelo obtenidos correctamente."));
     }
@@ -47,4 +80,7 @@ public class AsientoController : ControllerBase
 
         return Ok(ApiResponse<AsientoResponseDto>.Ok(result));
     }
+
+    private string GetRol() =>
+        User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
 }

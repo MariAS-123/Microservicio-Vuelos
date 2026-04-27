@@ -1,4 +1,4 @@
-﻿using Asp.Versioning;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microservicio.Vuelos.Api.Model.Common;
@@ -27,5 +27,18 @@ public class AuthController : ControllerBase
         var result = await _authService.LoginAsync(request);
 
         return Ok(ApiResponse<LoginResponse>.Ok(result, "Login exitoso."));
+    }
+
+    [HttpPost("register-cliente")]
+    [ProducesResponseType(typeof(ApiResponse<RegisterClienteResponse>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ApiResponse<RegisterClienteResponse>>> RegisterCliente([FromBody] RegisterClienteRequest request)
+    {
+        var result = await _authService.RegisterClienteAsync(request);
+
+        return StatusCode(
+            StatusCodes.Status201Created,
+            ApiResponse<RegisterClienteResponse>.Ok(result, "Cuenta de cliente creada correctamente."));
     }
 }

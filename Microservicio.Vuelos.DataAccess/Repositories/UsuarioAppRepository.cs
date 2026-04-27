@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microservicio.Vuelos.DataAccess.Context;
 using Microservicio.Vuelos.DataAccess.Entities;
 using Microservicio.Vuelos.DataAccess.Repositories.Interfaces;
@@ -41,13 +41,16 @@ namespace Microservicio.Vuelos.DataAccess.Repositories
 
         public async Task<UsuarioAppEntity?> ObtenerPorUsernameAsync(string username, CancellationToken cancellationToken = default)
         {
-            var normalizedUsername = username.Trim().ToUpperInvariant();
+            var exactUsername = username.Trim();
 
             return await _context.Usuarios
                 .AsNoTracking()
                 .Include(u => u.UsuariosRoles)
                     .ThenInclude(ur => ur.Rol)
-                .FirstOrDefaultAsync(u => u.Username == normalizedUsername && !u.EsEliminado, cancellationToken);
+                .FirstOrDefaultAsync(
+                    u => EF.Functions.Collate(u.Username, "Latin1_General_CS_AS") == exactUsername &&
+                         !u.EsEliminado,
+                    cancellationToken);
         }
 
         public async Task<UsuarioAppEntity?> ObtenerPorCorreoAsync(string correo, CancellationToken cancellationToken = default)

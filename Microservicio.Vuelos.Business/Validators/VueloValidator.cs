@@ -18,7 +18,7 @@ public class VueloValidator
 
     public void ValidateRequest(VueloRequestDto dto)
     {
-        var errors = ValidateCommon(dto);
+        var errors = ValidateCommon(dto, requireNumeroVuelo: false);
         ThrowIfAny(errors, "Error de validación al crear el vuelo.");
     }
 
@@ -73,7 +73,7 @@ public class VueloValidator
         ThrowIfAny(errors, "Error de validación en el filtro de vuelos.");
     }
 
-    private static List<string> ValidateCommon(VueloRequestDto dto)
+    private static List<string> ValidateCommon(VueloRequestDto dto, bool requireNumeroVuelo = true)
     {
         var errors = new List<string>();
 
@@ -92,7 +92,8 @@ public class VueloValidator
 
         if (string.IsNullOrWhiteSpace(dto.NumeroVuelo))
         {
-            errors.Add("El número de vuelo es obligatorio.");
+            if (requireNumeroVuelo)
+                errors.Add("El número de vuelo es obligatorio.");
         }
         else
         {
@@ -157,16 +158,19 @@ public class VueloValidator
     {
         var errors = new List<string>();
 
-        if (!dto.IdAeropuertoOrigen.HasValue)
-            errors.Add("El id del aeropuerto de origen es requerido.");
+        var origenDefinido = dto.IdAeropuertoOrigen.HasValue;
+        var destinoDefinido = dto.IdAeropuertoDestino.HasValue;
 
-        if (!dto.IdAeropuertoDestino.HasValue)
-            errors.Add("El id del aeropuerto de destino es requerido.");
+        if (origenDefinido && dto.IdAeropuertoOrigen!.Value <= 0)
+            errors.Add("El id del aeropuerto de origen debe ser mayor que 0.");
 
-        if (!dto.FechaSalida.HasValue)
-            errors.Add("La fecha de salida es requerida.");
+        if (destinoDefinido && dto.IdAeropuertoDestino!.Value <= 0)
+            errors.Add("El id del aeropuerto de destino debe ser mayor que 0.");
 
-        if (dto.IdAeropuertoOrigen.HasValue && dto.IdAeropuertoDestino.HasValue &&
+        if (origenDefinido != destinoDefinido)
+            errors.Add("Si envías aeropuerto de origen, también debes enviar aeropuerto de destino (y viceversa).");
+
+        if (origenDefinido && destinoDefinido &&
             dto.IdAeropuertoOrigen.Value == dto.IdAeropuertoDestino.Value)
             errors.Add("El aeropuerto de origen debe ser distinto al aeropuerto de destino.");
 

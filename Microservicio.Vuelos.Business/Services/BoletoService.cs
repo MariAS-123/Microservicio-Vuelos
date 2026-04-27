@@ -109,11 +109,15 @@ public class BoletoService : IBoletoService
         if (factura.IdReserva != request.IdReserva)
             throw new BusinessException("La factura no pertenece a la reserva indicada.");
 
+        if (factura.IdCliente != reserva.IdCliente)
+            throw new BusinessException("La factura no corresponde al cliente de la reserva.");
+
         if (reserva.EstadoReserva is not ("CON" or "EMI"))
             throw new BusinessException("Solo se puede emitir boleto para reservas en estado CON o EMI.");
 
-        if (factura.Estado != "APR")
-            throw new BusinessException("Solo se puede emitir boleto con factura aprobada (APR).");
+        var estadoFactura = factura.Estado.Trim().ToUpperInvariant();
+        if (estadoFactura != "ABI")
+            throw new BusinessException("Solo se puede emitir boleto con factura abierta (ABI).");
 
         var existentes = await _boletoDataService.GetPagedAsync(new BoletoFiltroDataModel
         {
@@ -127,6 +131,16 @@ public class BoletoService : IBoletoService
 
         var dataModel = BoletoBusinessMapper.ToDataModel(request, creadoPorUsuario);
         var creado = await _boletoDataService.CreateAsync(dataModel);
+
+        // Si la reserva estaba confirmada, al emitir boleto pasa automáticamente a EMI.
+        var estadoReservaActual = reserva.EstadoReserva.Trim().ToUpperInvariant();
+        if (estadoReservaActual == "CON")
+        {
+            reserva.EstadoReserva = "EMI";
+            reserva.ModificadoPorUsuario = creadoPorUsuario;
+            reserva.FechaModificacionUtc = DateTime.UtcNow;
+            await _reservaDataService.UpdateAsync(reserva);
+        }
 
         return BoletoBusinessMapper.ToResponseDto(creado);
     }

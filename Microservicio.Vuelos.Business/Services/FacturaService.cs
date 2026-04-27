@@ -121,7 +121,7 @@ public class FacturaService : IFacturaService
         var transicionesPermitidas = new Dictionary<string, string[]>
         {
             { "ABI", new[] { "APR", "INA" } },
-            { "APR", new[] { "INA" } },
+            { "APR", Array.Empty<string>() },
             { "INA", Array.Empty<string>() }
         };
 
@@ -147,6 +147,32 @@ public class FacturaService : IFacturaService
         var actualizada = await _facturaDataService.UpdateAsync(actual);
 
         return actualizada == null ? null : FacturaBusinessMapper.ToResponseDto(actualizada);
+    }
+
+    public Task<FacturaResponseDto?> AprobarAsync(int idFactura, string modificadoPorUsuario)
+    {
+        return UpdateEstadoAsync(
+            idFactura,
+            new FacturaUpdateRequestDto { Estado = "APR" },
+            modificadoPorUsuario);
+    }
+
+    public async Task<FacturaResponseDto?> PagarAsync(int idFactura, int? idClienteDelToken, string rolDelToken, string modificadoPorUsuario)
+    {
+        if (rolDelToken != "CLIENTE")
+            throw new UnauthorizedBusinessException("Solo el cliente puede simular el pago de factura.");
+
+        var factura = await _facturaDataService.GetByIdAsync(idFactura);
+        if (factura == null)
+            throw new NotFoundException("Factura no encontrada.");
+
+        if (idClienteDelToken == null || factura.IdCliente != idClienteDelToken.Value)
+            throw new UnauthorizedBusinessException("No tienes permiso para pagar esta factura.");
+
+        return await UpdateEstadoAsync(
+            idFactura,
+            new FacturaUpdateRequestDto { Estado = "APR" },
+            modificadoPorUsuario);
     }
 
     public async Task<bool> DeleteAsync(int idFactura, string modificadoPorUsuario)

@@ -1,4 +1,3 @@
-using System;
 using Microservicio.Vuelos.Business.DTOs.Factura;
 using Microservicio.Vuelos.Business.Exceptions;
 
@@ -26,22 +25,10 @@ public class FacturaValidator
         if (dto.Subtotal < 0)
             errors.Add("El subtotal no puede ser negativo.");
 
-        if (dto.ValorIva < 0)
-            errors.Add("El valor del IVA no puede ser negativo.");
-
         if (dto.CargoServicio < 0)
             errors.Add("El cargo de servicio no puede ser negativo.");
 
-        if (dto.Total < 0)
-            errors.Add("El total no puede ser negativo.");
-
-        var esperado = Math.Round(
-            dto.Subtotal + dto.ValorIva + dto.CargoServicio,
-            2,
-            MidpointRounding.AwayFromZero);
-        var totalRedondeado = Math.Round(dto.Total, 2, MidpointRounding.AwayFromZero);
-        if (esperado != totalRedondeado)
-            errors.Add("El total debe ser igual a subtotal + IVA + cargo de servicio (el cargo puede ser 0).");
+        // IVA y total se calculan en backend (15%), no se validan desde el request.
 
         if (!string.IsNullOrWhiteSpace(dto.ObservacionesFactura) &&
             dto.ObservacionesFactura.Trim().Length > 300)

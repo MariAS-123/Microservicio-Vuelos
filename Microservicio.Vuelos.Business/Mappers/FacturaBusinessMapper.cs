@@ -1,3 +1,4 @@
+using System;
 using Microservicio.Vuelos.Business.DTOs.Factura;
 using Microservicio.Vuelos.DataManagement.Models;
 
@@ -5,6 +6,8 @@ namespace Microservicio.Vuelos.Business.Mappers;
 
 public static class FacturaBusinessMapper
 {
+    private const decimal IvaRate = 0.15m;
+
     public static FacturaFiltroDataModel ToFiltroDataModel(FacturaFilterDto dto)
     {
         return new FacturaFiltroDataModel
@@ -20,14 +23,19 @@ public static class FacturaBusinessMapper
 
     public static FacturaDataModel ToDataModel(FacturaRequestDto dto, string creadoPorUsuario)
     {
+        var subtotal = Math.Round(dto.Subtotal, 2, MidpointRounding.AwayFromZero);
+        var valorIva = Math.Round(subtotal * IvaRate, 2, MidpointRounding.AwayFromZero);
+        var cargoServicio = Math.Round(dto.CargoServicio, 2, MidpointRounding.AwayFromZero);
+        var total = Math.Round(subtotal + valorIva + cargoServicio, 2, MidpointRounding.AwayFromZero);
+
         return new FacturaDataModel
         {
             IdCliente = dto.IdCliente,
             IdReserva = dto.IdReserva,
-            Subtotal = dto.Subtotal,
-            ValorIva = dto.ValorIva,
-            CargoServicio = dto.CargoServicio,
-            Total = dto.Total,
+            Subtotal = subtotal,
+            ValorIva = valorIva,
+            CargoServicio = cargoServicio,
+            Total = total,
             ObservacionesFactura = dto.ObservacionesFactura,
             Estado = "ABI",
             EsEliminado = false,

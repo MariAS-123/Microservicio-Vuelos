@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microservicio.Vuelos.DataAccess.Entities;
 using Microservicio.Vuelos.DataManagement.Models;
 
@@ -44,9 +44,8 @@ public static class FacturaDataMapper
         IdCliente = m.IdCliente,
         IdReserva = m.IdReserva,
 
-        NumeroFactura = string.IsNullOrWhiteSpace(m.NumeroFactura)
-            ? $"FA-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}"
-            : m.NumeroFactura.Trim().ToUpperInvariant(),
+        // Siempre se genera automáticamente en backend.
+        NumeroFactura = $"FA-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}",
 
         FechaEmision = m.FechaEmision == default
             ? DateTime.UtcNow
@@ -105,10 +104,6 @@ public static class FacturaDataMapper
     {
         e.IdCliente = m.IdCliente;
         e.IdReserva = m.IdReserva;
-
-        e.NumeroFactura = string.IsNullOrWhiteSpace(m.NumeroFactura)
-            ? e.NumeroFactura
-            : m.NumeroFactura.Trim().ToUpperInvariant();
 
         e.FechaEmision = m.FechaEmision;
 

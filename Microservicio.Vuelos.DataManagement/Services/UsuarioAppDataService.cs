@@ -1,4 +1,4 @@
-﻿using Microservicio.Vuelos.DataAccess.Repositories.Interfaces;
+using Microservicio.Vuelos.DataAccess.Repositories.Interfaces;
 using Microservicio.Vuelos.DataManagement.Interfaces;
 using Microservicio.Vuelos.DataManagement.Mappers;
 using Microservicio.Vuelos.DataManagement.Models;
@@ -30,13 +30,13 @@ public class UsuarioAppDataService : IUsuarioAppDataService
         if (!string.IsNullOrWhiteSpace(filtro.Username))
         {
             var username = filtro.Username.Trim().ToUpperInvariant();
-            query = query.Where(x => x.Username.Contains(username));
+            query = query.Where(x => x.Username.ToUpperInvariant().Contains(username));
         }
 
         if (!string.IsNullOrWhiteSpace(filtro.Correo))
         {
             var correo = filtro.Correo.Trim().ToUpperInvariant();
-            query = query.Where(x => x.Correo.Contains(correo));
+            query = query.Where(x => x.Correo.ToUpperInvariant().Contains(correo));
         }
 
         if (filtro.Activo.HasValue)

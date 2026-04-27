@@ -36,7 +36,12 @@ app.MapGet("/", context =>
 app.UseSwaggerDocumentation();
 
 // HTTPS
-app.UseHttpsRedirection();
+// En desarrollo evitamos redirección automática para no romper clientes
+// que aún usan la URL http local (IIS Express).
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 // CORS
 app.UseCorsPolicy();

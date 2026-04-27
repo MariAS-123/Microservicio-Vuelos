@@ -6,6 +6,7 @@ using Microservicio.Vuelos.Business.DTOs.Equipaje;
 using Microservicio.Vuelos.Business.Exceptions;
 using Microservicio.Vuelos.Business.Interfaces;
 using Microservicio.Vuelos.Business.Mappers;
+using Microservicio.Vuelos.Business.Services.Policies;
 using Microservicio.Vuelos.Business.Validators;
 using Microservicio.Vuelos.DataManagement.Interfaces;
 using Microservicio.Vuelos.DataManagement.Models;
@@ -17,16 +18,19 @@ public class EquipajeService : IEquipajeService
     private readonly IEquipajeDataService _equipajeDataService;
     private readonly IBoletoDataService _boletoDataService;
     private readonly IReservaDataService _reservaDataService;
+    private readonly IFacturaDataService _facturaDataService;
     private readonly EquipajeValidator _validator;
 
     public EquipajeService(
         IEquipajeDataService equipajeDataService,
         IBoletoDataService boletoDataService,
-        IReservaDataService reservaDataService)
+        IReservaDataService reservaDataService,
+        IFacturaDataService facturaDataService)
     {
         _equipajeDataService = equipajeDataService;
         _boletoDataService = boletoDataService;
         _reservaDataService = reservaDataService;
+        _facturaDataService = facturaDataService;
         _validator = new EquipajeValidator();
     }
 
@@ -138,6 +142,14 @@ public class EquipajeService : IEquipajeService
         if (boleto.EstadoBoleto != "ACTIVO")
             throw new BusinessException("Solo se puede registrar equipaje para boletos en estado ACTIVO.");
 
+        var factura = await _facturaDataService.GetByIdAsync(boleto.IdFactura);
+        if (factura == null)
+            throw new NotFoundException("La factura asociada al boleto no existe.");
+
+        var estadoFactura = factura.Estado.Trim().ToUpperInvariant();
+        if (estadoFactura != "ABI")
+            throw new BusinessException("Solo se puede registrar equipaje cuando la factura está ABI.");
+
         if (rolDelToken == "CLIENTE")
         {
             if (idClienteDelToken is null)
@@ -149,7 +161,26 @@ public class EquipajeService : IEquipajeService
         }
 
         var dataModel = EquipajeBusinessMapper.ToDataModel(request, creadoPorUsuario);
+        dataModel.PrecioExtra = EquipajePricingPolicy.CalcularPrecioExtra(request.Tipo, request.PesoKg);
+        dataModel.DimensionesCm = EquipajePricingPolicy.ObtenerDimensionesEstandar(request.Tipo);
         var creado = await _equipajeDataService.CreateAsync(dataModel);
+
+        // Sincroniza el acumulado de equipaje en boleto para mantener consistencia visual/operativa.
+        boleto.CargoEquipaje = Math.Round(boleto.CargoEquipaje + creado.PrecioExtra, 2, MidpointRounding.AwayFromZero);
+        boleto.PrecioFinal = Math.Round(
+            boleto.PrecioVueloBase + boleto.PrecioAsientoExtra + boleto.ImpuestosBoleto + boleto.CargoEquipaje,
+            2,
+            MidpointRounding.AwayFromZero);
+        boleto.ModificadoPorUsuario = creadoPorUsuario;
+        boleto.FechaModificacionUtc = DateTime.UtcNow;
+        await _boletoDataService.UpdateAsync(boleto);
+
+        // Recalcula la factura abierta incorporando el cargo por equipaje.
+        factura.CargoServicio = Math.Round(factura.CargoServicio + creado.PrecioExtra, 2, MidpointRounding.AwayFromZero);
+        factura.Total = Math.Round(factura.Subtotal + factura.ValorIva + factura.CargoServicio, 2, MidpointRounding.AwayFromZero);
+        factura.ModificadoPorUsuario = creadoPorUsuario;
+        factura.FechaModificacionUtc = DateTime.UtcNow;
+        await _facturaDataService.UpdateAsync(factura);
 
         return EquipajeBusinessMapper.ToResponseDto(creado);
     }
@@ -170,6 +201,18 @@ public class EquipajeService : IEquipajeService
         var actual = await _equipajeDataService.GetByIdAsync(idEquipaje);
         if (actual == null)
             throw new NotFoundException("Equipaje no encontrado.");
+
+        var boleto = await _boletoDataService.GetByIdAsync(actual.IdBoleto);
+        if (boleto == null)
+            throw new NotFoundException("El boleto asociado al equipaje no existe.");
+
+        var factura = await _facturaDataService.GetByIdAsync(boleto.IdFactura);
+        if (factura == null)
+            throw new NotFoundException("La factura asociada al boleto no existe.");
+
+        var estadoFactura = factura.Estado.Trim().ToUpperInvariant();
+        if (estadoFactura is "APR" or "INA")
+            throw new BusinessException("No se puede modificar equipaje cuando la factura está APR o INA.");
 
         var estadoActual = actual.EstadoEquipaje.Trim().ToUpperInvariant();
         var estadoNuevo = request.EstadoEquipaje.Trim().ToUpperInvariant();

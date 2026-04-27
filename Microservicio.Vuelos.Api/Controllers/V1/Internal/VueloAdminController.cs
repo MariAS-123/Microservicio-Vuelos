@@ -28,7 +28,12 @@ public class VueloAdminController : ControllerBase
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ApiResponse<object>>> GetPaged([FromQuery] VueloFilterDto filter)
     {
-        var result = await _vueloService.GetPagedAsync(filter);
+        NormalizeFilter(filter);
+
+        var rol = GetRol();
+        var result = rol == "CLIENTE"
+            ? await _vueloService.GetPagedBookingAsync(filter)
+            : await _vueloService.GetPagedAsync(filter);
 
         return Ok(ApiResponse<object>.Ok(result, "Consulta de vuelos realizada correctamente."));
     }
@@ -130,5 +135,20 @@ public class VueloAdminController : ControllerBase
             return username.Trim();
 
         return "SYSTEM";
+    }
+
+    private string GetRol() =>
+        User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
+
+    private static void NormalizeFilter(VueloFilterDto filter)
+    {
+        if (filter.IdAeropuertoOrigen.HasValue && filter.IdAeropuertoOrigen.Value <= 0)
+            filter.IdAeropuertoOrigen = null;
+
+        if (filter.IdAeropuertoDestino.HasValue && filter.IdAeropuertoDestino.Value <= 0)
+            filter.IdAeropuertoDestino = null;
+
+        if (filter.FechaSalida.HasValue && filter.FechaSalida.Value <= DateTime.MinValue.AddDays(1))
+            filter.FechaSalida = null;
     }
 }

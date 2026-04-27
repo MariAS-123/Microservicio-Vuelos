@@ -1,4 +1,4 @@
-﻿using Microservicio.Vuelos.DataAccess.Entities;
+using Microservicio.Vuelos.DataAccess.Entities;
 using Microservicio.Vuelos.DataManagement.Models;
 
 namespace Microservicio.Vuelos.DataManagement.Mappers;
@@ -45,10 +45,8 @@ public static class ReservaDataMapper
         IdReserva = m.IdReserva,
         GuidReserva = m.GuidReserva == Guid.Empty ? Guid.NewGuid() : m.GuidReserva,
 
-        // ✅ Generar código automáticamente si no viene
-        CodigoReserva = string.IsNullOrWhiteSpace(m.CodigoReserva)
-            ? $"VU-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}"
-            : m.CodigoReserva.Trim().ToUpperInvariant(),
+        // Siempre se genera automáticamente en backend.
+        CodigoReserva = $"VU-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}",
 
         IdCliente = m.IdCliente,
         IdPasajero = m.IdPasajero,
@@ -113,10 +111,6 @@ public static class ReservaDataMapper
 
     public static void UpdateEntity(ReservaEntity e, ReservaDataModel m)
     {
-        e.CodigoReserva = string.IsNullOrWhiteSpace(m.CodigoReserva)
-            ? e.CodigoReserva
-            : m.CodigoReserva.Trim().ToUpperInvariant();
-
         e.IdCliente = m.IdCliente;
         e.IdPasajero = m.IdPasajero;
         e.IdVuelo = m.IdVuelo;

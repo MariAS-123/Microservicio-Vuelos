@@ -85,6 +85,41 @@ public class FacturaAdminController : ControllerBase
         return Ok(ApiResponse<FacturaResponseDto>.Ok(result, "Estado de factura actualizado correctamente."));
     }
 
+    // PATCH /aprobar ? ADMINISTRADOR y AEROLINEA pueden aprobar facturas
+    [HttpPatch("{id_factura:int}/aprobar")]
+    [Authorize(Roles = "ADMINISTRADOR,AEROLINEA")]
+    [ProducesResponseType(typeof(ApiResponse<FacturaResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<FacturaResponseDto>>> Aprobar(int id_factura)
+    {
+        var usuario = GetUsuario();
+        var result = await _facturaService.AprobarAsync(id_factura, usuario);
+
+        if (result is null)
+            return NotFound(ApiResponse<FacturaResponseDto>.Fail("Factura no encontrada."));
+
+        return Ok(ApiResponse<FacturaResponseDto>.Ok(result, "Factura aprobada correctamente."));
+    }
+
+    // POST /pagar ? CLIENTE simula pago y la factura pasa a APR
+    [HttpPost("{id_factura:int}/pagar")]
+    [Authorize(Roles = "CLIENTE")]
+    [ProducesResponseType(typeof(ApiResponse<FacturaResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ApiResponse<FacturaResponseDto>>> Pagar(int id_factura)
+    {
+        var usuario = GetUsuario();
+        var result = await _facturaService.PagarAsync(id_factura, GetIdCliente(), GetRol(), usuario);
+
+        if (result is null)
+            return NotFound(ApiResponse<FacturaResponseDto>.Fail("Factura no encontrada."));
+
+        return Ok(ApiResponse<FacturaResponseDto>.Ok(result, "Pago simulado correctamente. Factura aprobada."));
+    }
+
     private string GetUsuario()
     {
         var name = User?.Identity?.Name;

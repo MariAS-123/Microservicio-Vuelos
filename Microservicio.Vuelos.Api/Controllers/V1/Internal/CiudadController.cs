@@ -23,11 +23,13 @@ public class CiudadController : ControllerBase
 
     // GET PAGINADO ? Todos los roles autenticados
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ApiResponse<object>>> GetPaged([FromQuery] CiudadFilterDto filter)
     {
+        NormalizeFilter(filter);
         var result = await _ciudadService.GetPagedAsync(filter);
 
         return Ok(ApiResponse<object>.Ok(result, "Consulta de ciudades realizada correctamente."));
@@ -35,6 +37,7 @@ public class CiudadController : ControllerBase
 
     // GET BY ID ? Todos los roles autenticados
     [HttpGet("{id_ciudad:int}")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<CiudadResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
@@ -110,5 +113,19 @@ public class CiudadController : ControllerBase
             return username.Trim();
 
         return "SYSTEM";
+    }
+
+    private static void NormalizeFilter(CiudadFilterDto filter)
+    {
+        if (filter.IdPais.HasValue && filter.IdPais.Value <= 0)
+            filter.IdPais = null;
+
+        if (filter.Page <= 0)
+            filter.Page = 1;
+
+        if (filter.PageSize <= 0)
+            filter.PageSize = 20;
+        else if (filter.PageSize > 200)
+            filter.PageSize = 200;
     }
 }

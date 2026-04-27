@@ -30,6 +30,8 @@ public class VueloController : ControllerBase
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ApiResponse<object>>> GetPaged([FromQuery] VueloFilterDto filter)
     {
+        NormalizeFilter(filter);
+
         var result = await _vueloService.GetPagedBookingAsync(filter); // ?
 
         return Ok(ApiResponse<object>.Ok(result, "Consulta de vuelos realizada correctamente."));
@@ -52,4 +54,15 @@ public class VueloController : ControllerBase
     }
 
 
+    private static void NormalizeFilter(VueloFilterDto filter)
+    {
+        if (filter.IdAeropuertoOrigen.HasValue && filter.IdAeropuertoOrigen.Value <= 0)
+            filter.IdAeropuertoOrigen = null;
+
+        if (filter.IdAeropuertoDestino.HasValue && filter.IdAeropuertoDestino.Value <= 0)
+            filter.IdAeropuertoDestino = null;
+
+        if (filter.FechaSalida.HasValue && filter.FechaSalida.Value <= DateTime.MinValue.AddDays(1))
+            filter.FechaSalida = null;
+    }
 }

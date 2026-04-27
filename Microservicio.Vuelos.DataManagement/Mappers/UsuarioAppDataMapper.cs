@@ -1,4 +1,4 @@
-﻿using Microservicio.Vuelos.DataAccess.Entities;
+using Microservicio.Vuelos.DataAccess.Entities;
 using Microservicio.Vuelos.DataManagement.Models;
 
 namespace Microservicio.Vuelos.DataManagement.Mappers;
@@ -47,7 +47,7 @@ public static class UsuarioAppDataMapper
 
         IdCliente = m.IdCliente,
 
-        Username = m.Username.Trim().ToUpperInvariant(),
+        Username = m.Username.Trim(),
         Correo = m.Correo.Trim().ToUpperInvariant(),
 
         PasswordHash = m.PasswordHash,
@@ -79,7 +79,7 @@ public static class UsuarioAppDataMapper
     {
         e.IdCliente = m.IdCliente;
 
-        e.Username = m.Username.Trim().ToUpperInvariant();
+        e.Username = m.Username.Trim();
         e.Correo = m.Correo.Trim().ToUpperInvariant();
 
         if (!string.IsNullOrWhiteSpace(m.PasswordHash))

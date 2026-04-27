@@ -13,5 +13,9 @@ public interface IFacturaService
 
     Task<FacturaResponseDto?> UpdateEstadoAsync(int idFactura, FacturaUpdateRequestDto request, string modificadoPorUsuario);
 
+    Task<FacturaResponseDto?> AprobarAsync(int idFactura, string modificadoPorUsuario);
+
+    Task<FacturaResponseDto?> PagarAsync(int idFactura, int? idClienteDelToken, string rolDelToken, string modificadoPorUsuario);
+
     Task<bool> DeleteAsync(int idFactura, string modificadoPorUsuario);
 }

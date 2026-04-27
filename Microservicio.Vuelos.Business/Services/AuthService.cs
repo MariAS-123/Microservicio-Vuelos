@@ -1,9 +1,13 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Microservicio.Vuelos.Business.DTOs.Auth;
+using Microservicio.Vuelos.Business.DTOs.Cliente;
+using Microservicio.Vuelos.Business.DTOs.UsuarioApp;
+using Microservicio.Vuelos.Business.DTOs.UsuarioRol;
 using Microservicio.Vuelos.Business.Exceptions;
 using Microservicio.Vuelos.Business.Interfaces;
 using Microservicio.Vuelos.Business.Mappers;
@@ -15,14 +19,26 @@ namespace Microservicio.Vuelos.Business.Services;
 public class AuthService : IAuthService
 {
     private readonly IUsuarioAppDataService _usuarioDataService;
+    private readonly IClienteService _clienteService;
+    private readonly IUsuarioAppService _usuarioAppService;
+    private readonly IUsuarioRolService _usuarioRolService;
+    private readonly IRolDataService _rolDataService;
     private readonly AuthValidator _validator;
     private readonly IConfiguration _configuration;
 
     public AuthService(
         IUsuarioAppDataService usuarioDataService,
+        IClienteService clienteService,
+        IUsuarioAppService usuarioAppService,
+        IUsuarioRolService usuarioRolService,
+        IRolDataService rolDataService,
         IConfiguration configuration)
     {
         _usuarioDataService = usuarioDataService;
+        _clienteService = clienteService;
+        _usuarioAppService = usuarioAppService;
+        _usuarioRolService = usuarioRolService;
+        _rolDataService = rolDataService;
         _validator = new AuthValidator();
         _configuration = configuration;
     }
@@ -39,7 +55,7 @@ public class AuthService : IAuthService
         if (!user.Activo || user.EsEliminado || user.EstadoUsuario != "ACT")
             throw new UnauthorizedBusinessException("El usuario no está activo.");
 
-        if (!string.Equals(user.PasswordHash, request.Password, StringComparison.Ordinal))
+        if (!IsPasswordValid(request.Password, user.PasswordHash, user.PasswordSalt))
             throw new UnauthorizedBusinessException("Usuario o contraseña incorrectos.");
 
         var expirationMinutes = _configuration.GetValue<int>("JwtSettings:ExpirationMinutes");
@@ -48,6 +64,63 @@ public class AuthService : IAuthService
         var token = GenerateJwtToken(user.Username, user.Roles, user.IdCliente, expiracion); // ✅
 
         return AuthBusinessMapper.ToLoginResponse(user, token, expiracion);
+    }
+
+    public async Task<RegisterClienteResponse> RegisterClienteAsync(RegisterClienteRequest request)
+    {
+        _validator.ValidateRegisterCliente(request);
+
+        var rolCliente = await _rolDataService.GetByNombreAsync("CLIENTE");
+        if (rolCliente == null || rolCliente.EsEliminado || !rolCliente.Activo || rolCliente.EstadoRol != "ACT")
+            throw new BusinessException("No se encontró el rol CLIENTE activo para registrar la cuenta.");
+
+        var cliente = await _clienteService.CreateAsync(new ClienteRequestDto
+        {
+            TipoIdentificacion = request.TipoIdentificacion,
+            NumeroIdentificacion = request.NumeroIdentificacion,
+            Nombres = request.Nombres,
+            Apellidos = request.Apellidos,
+            RazonSocial = request.RazonSocial,
+            Correo = request.Correo,
+            Telefono = request.Telefono,
+            Direccion = request.Direccion,
+            IdCiudadResidencia = request.IdCiudadResidencia,
+            IdPaisNacionalidad = request.IdPaisNacionalidad,
+            FechaNacimiento = request.FechaNacimiento,
+            Nacionalidad = request.Nacionalidad,
+            Genero = request.Genero
+        }, "SELF_REGISTER");
+
+        try
+        {
+            var usuario = await _usuarioAppService.CreateAsync(new UsuarioAppRequestDto
+            {
+                IdCliente = cliente.IdCliente,
+                Username = request.Username,
+                Correo = request.Correo,
+                Password = request.Password
+            }, "SELF_REGISTER");
+
+            await _usuarioRolService.CreateAsync(new UsuarioRolRequestDto
+            {
+                IdUsuario = usuario.IdUsuario,
+                IdRol = rolCliente.IdRol
+            }, "SELF_REGISTER");
+
+            return new RegisterClienteResponse
+            {
+                IdCliente = cliente.IdCliente,
+                IdUsuario = usuario.IdUsuario,
+                Username = usuario.Username,
+                RolAsignado = "CLIENTE"
+            };
+        }
+        catch
+        {
+            // rollback compensatorio: evita cliente huérfano si falla usuario/rol.
+            await _clienteService.DeleteAsync(cliente.IdCliente, "SELF_REGISTER");
+            throw;
+        }
     }
 
     private string GenerateJwtToken(string username, List<string> roles, int? idCliente, DateTime expiracion) // ✅
@@ -90,6 +163,35 @@ public class AuthService : IAuthService
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    private static bool IsPasswordValid(string password, string storedHash, string? storedSalt)
+    {
+        // Compatibilidad temporal: si quedó almacenada en texto plano.
+        if (string.Equals(storedHash, password, StringComparison.Ordinal))
+            return true;
+
+        if (string.IsNullOrWhiteSpace(storedHash) || string.IsNullOrWhiteSpace(storedSalt))
+            return false;
+
+        try
+        {
+            var hashBytes = Convert.FromBase64String(storedHash);
+            var saltBytes = Convert.FromBase64String(storedSalt);
+
+            using var sha256 = SHA256.Create();
+            var passwordBytes = Encoding.UTF8.GetBytes(password);
+            var combined = new byte[passwordBytes.Length + saltBytes.Length];
+            Buffer.BlockCopy(passwordBytes, 0, combined, 0, passwordBytes.Length);
+            Buffer.BlockCopy(saltBytes, 0, combined, passwordBytes.Length, saltBytes.Length);
+            var computed = sha256.ComputeHash(combined);
+
+            return CryptographicOperations.FixedTimeEquals(computed, hashBytes);
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
     }
 
 }

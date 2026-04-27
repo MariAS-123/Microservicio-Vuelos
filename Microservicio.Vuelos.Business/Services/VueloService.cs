@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microservicio.Vuelos.Business.DTOs.Vuelo;
@@ -15,16 +16,22 @@ namespace Microservicio.Vuelos.Business.Services;
 public class VueloService : IVueloService
 {
     private readonly IVueloDataService _vueloDataService;
+    private readonly IReservaDataService _reservaDataService;
+    private readonly IAsientoDataService _asientoDataService;
     private readonly IAeropuertoDataService _aeropuertoDataService;
     private readonly VueloValidator _validator;
     private readonly bool _validarHoraSalidaAntesDeEnVuelo;
 
     public VueloService(
         IVueloDataService vueloDataService,
+        IReservaDataService reservaDataService,
+        IAsientoDataService asientoDataService,
         IAeropuertoDataService aeropuertoDataService,
         IConfiguration configuration)
     {
         _vueloDataService = vueloDataService;
+        _reservaDataService = reservaDataService;
+        _asientoDataService = asientoDataService;
         _aeropuertoDataService = aeropuertoDataService;
         _validator = new VueloValidator();
         _validarHoraSalidaAntesDeEnVuelo = configuration.GetValue(
@@ -63,6 +70,7 @@ public class VueloService : IVueloService
         if (string.IsNullOrWhiteSpace(creadoPorUsuario))
             throw new UnauthorizedBusinessException("No se pudo identificar el usuario creador.");
 
+        request.FechaHoraLlegada = request.FechaHoraSalida.AddMinutes(request.DuracionMin);
         _validator.ValidateRequest(request);
 
         var aeropuertoOrigen = await _aeropuertoDataService.GetByIdAsync(request.IdAeropuertoOrigen);
@@ -77,18 +85,10 @@ public class VueloService : IVueloService
         if (aeropuertoDestino.Eliminado || aeropuertoDestino.Estado != "ACTIVO")
             throw new BusinessException("El aeropuerto de destino está inactivo o eliminado.");
 
-        var existentes = await _vueloDataService.GetPagedAsync(new VueloFiltroDataModel
-        {
-            PageNumber = 1,
-            PageSize = 10000
-        });
-
-        var numeroVuelo = request.NumeroVuelo.Trim().ToUpperInvariant();
-
-        if (existentes.Items.Any(x => x.NumeroVuelo.Trim().ToUpperInvariant() == numeroVuelo))
-            throw new BusinessException("Ya existe un vuelo con el mismo número de vuelo.");
+        var numeroVueloGenerado = await GenerarNumeroVueloAsync();
 
         var dataModel = VueloBusinessMapper.ToDataModel(request, creadoPorUsuario);
+        dataModel.NumeroVuelo = numeroVueloGenerado;
         var creado = await _vueloDataService.CreateAsync(dataModel);
 
         return VueloBusinessMapper.ToResponseDto(creado);
@@ -102,6 +102,7 @@ public class VueloService : IVueloService
         if (string.IsNullOrWhiteSpace(modificadoPorUsuario))
             throw new UnauthorizedBusinessException("No se pudo identificar el usuario modificador.");
 
+        request.FechaHoraLlegada = request.FechaHoraSalida.AddMinutes(request.DuracionMin);
         _validator.ValidateUpdate(request);
 
         var actual = await _vueloDataService.GetByIdAsync(idVuelo);
@@ -243,15 +244,109 @@ public class VueloService : IVueloService
     {
         _validator.ValidateFilterBooking(filter); // ✅ validación estricta
 
-        var filtro = VueloBusinessMapper.ToFiltroDataModel(filter);
-        var result = await _vueloDataService.GetPagedAsync(filtro);
+        // Para portal cliente, filtramos ANTES de paginar para evitar desalineación de totalRecords.
+        var filtroCompleto = VueloBusinessMapper.ToFiltroDataModel(filter);
+        filtroCompleto.PageNumber = 1;
+        filtroCompleto.PageSize = 100000;
+        var resultCompleto = await _vueloDataService.GetPagedAsync(filtroCompleto);
+        var vuelosFiltrados = resultCompleto.Items
+            .Where(v =>
+                string.Equals(v.Estado, "ACTIVO", StringComparison.OrdinalIgnoreCase) &&
+                v.EstadoVuelo is "PROGRAMADO" or "DEMORADO" &&
+                v.FechaHoraSalida > DateTime.UtcNow)
+            .ToList();
+
+        if (vuelosFiltrados.Count > 0)
+        {
+            var idsVuelos = vuelosFiltrados.Select(x => x.IdVuelo).ToHashSet();
+
+            var reservas = await _reservaDataService.GetPagedAsync(new ReservaFiltroDataModel
+            {
+                PageNumber = 1,
+                PageSize = 100000
+            });
+
+            var reservasActivas = reservas.Items
+                .Where(r =>
+                    idsVuelos.Contains(r.IdVuelo) &&
+                    r.EstadoReserva is "PEN" or "CON" or "EMI")
+                .ToList();
+
+            var conteoReservasActivasPorVuelo = reservasActivas
+                .GroupBy(r => r.IdVuelo)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            var asientosDisponibles = await _asientoDataService.GetPagedAsync(new AsientoFiltroDataModel
+            {
+                Disponible = true,
+                Estado = "ACTIVO",
+                PageNumber = 1,
+                PageSize = 100000
+            });
+
+            var asientosReservadosActivos = reservasActivas
+                .Select(r => r.IdAsiento)
+                .ToHashSet();
+
+            var asientosRealmenteDisponiblesPorVuelo = asientosDisponibles.Items
+                .Where(a =>
+                    idsVuelos.Contains(a.IdVuelo) &&
+                    !a.Eliminado &&
+                    !asientosReservadosActivos.Contains(a.IdAsiento))
+                .GroupBy(a => a.IdVuelo)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            vuelosFiltrados = vuelosFiltrados
+                .Where(v =>
+                {
+                    var reservadas = conteoReservasActivasPorVuelo.GetValueOrDefault(v.IdVuelo, 0);
+                    var hayCapacidad = reservadas < v.CapacidadTotal;
+                    var asientosDisponibles = asientosRealmenteDisponiblesPorVuelo.GetValueOrDefault(v.IdVuelo, 0);
+                    return hayCapacidad && asientosDisponibles > 0;
+                })
+                .ToList();
+        }
+
+        var page = filter.Page <= 0 ? 1 : filter.Page;
+        var pageSize = filter.PageSize <= 0 ? 20 : filter.PageSize;
+        var totalRecords = vuelosFiltrados.Count;
+        var vuelosPagina = vuelosFiltrados
+            .OrderBy(v => v.FechaHoraSalida)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
 
         return new DataPagedResult<VueloResponseDto>
         {
-            Items = VueloBusinessMapper.ToResponseDtoList(result.Items),
-            PageNumber = result.PageNumber,
-            PageSize = result.PageSize,
-            TotalRecords = result.TotalRecords
+            Items = VueloBusinessMapper.ToResponseDtoList(vuelosPagina),
+            PageNumber = page,
+            PageSize = pageSize,
+            TotalRecords = totalRecords
         };
+    }
+
+    private async Task<string> GenerarNumeroVueloAsync()
+    {
+        var existentes = await _vueloDataService.GetPagedAsync(new VueloFiltroDataModel
+        {
+            PageNumber = 1,
+            PageSize = 100000
+        });
+
+        var correlativoMaximo = 0;
+        var regex = new Regex("^AV(\\d+)$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+        foreach (var vuelo in existentes.Items)
+        {
+            var numeroVuelo = (vuelo.NumeroVuelo ?? string.Empty).Trim().ToUpperInvariant();
+            var match = regex.Match(numeroVuelo);
+            if (!match.Success)
+                continue;
+
+            if (int.TryParse(match.Groups[1].Value, out var valor) && valor > correlativoMaximo)
+                correlativoMaximo = valor;
+        }
+
+        return $"AV{(correlativoMaximo + 1):D4}";
     }
 }

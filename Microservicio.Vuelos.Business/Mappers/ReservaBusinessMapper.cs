@@ -1,3 +1,4 @@
+using System;
 using Microservicio.Vuelos.Business.DTOs.Reserva;
 using Microservicio.Vuelos.DataManagement.Models;
 
@@ -5,6 +6,8 @@ namespace Microservicio.Vuelos.Business.Mappers;
 
 public static class ReservaBusinessMapper
 {
+    private const decimal IvaRate = 0.15m;
+
     public static ReservaFiltroDataModel ToFiltroDataModel(ReservaFilterDto dto)
     {
         return new ReservaFiltroDataModel
@@ -21,6 +24,10 @@ public static class ReservaBusinessMapper
 
     public static ReservaDataModel ToDataModel(ReservaRequestDto dto, string creadoPorUsuario)
     {
+        var subtotal = Math.Round(dto.SubtotalReserva, 2, MidpointRounding.AwayFromZero);
+        var valorIva = Math.Round(subtotal * IvaRate, 2, MidpointRounding.AwayFromZero);
+        var total = Math.Round(subtotal + valorIva, 2, MidpointRounding.AwayFromZero);
+
         return new ReservaDataModel
         {
             IdCliente = dto.IdCliente,
@@ -29,9 +36,9 @@ public static class ReservaBusinessMapper
             IdAsiento = dto.IdAsiento,
             FechaInicio = dto.FechaInicio,
             FechaFin = dto.FechaFin,
-            SubtotalReserva = dto.SubtotalReserva,
-            ValorIva = dto.ValorIva,
-            TotalReserva = dto.TotalReserva,
+            SubtotalReserva = subtotal,
+            ValorIva = valorIva,
+            TotalReserva = total,
             OrigenCanalReserva = string.IsNullOrWhiteSpace(dto.OrigenCanalReserva) ? "BOOKING" : dto.OrigenCanalReserva,
             ContactoEmail = dto.ContactoEmail,
             ContactoTelefono = dto.ContactoTelefono,

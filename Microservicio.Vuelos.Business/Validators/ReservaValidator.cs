@@ -57,19 +57,7 @@ public class ReservaValidator
         if (dto.SubtotalReserva < 0)
             errors.Add("El subtotal de la reserva no puede ser negativo.");
 
-        if (dto.ValorIva < 0)
-            errors.Add("El valor del IVA no puede ser negativo.");
-
-        if (dto.TotalReserva < 0)
-            errors.Add("El total de la reserva no puede ser negativo.");
-
-        if (dto.TotalReserva < dto.SubtotalReserva)
-            errors.Add("El total de la reserva no puede ser menor que el subtotal.");
-
-        var esperado = Math.Round(dto.SubtotalReserva + dto.ValorIva, 2, MidpointRounding.AwayFromZero);
-        var total = Math.Round(dto.TotalReserva, 2, MidpointRounding.AwayFromZero);
-        if (esperado != total)
-            errors.Add("El total de la reserva debe ser igual a subtotal + IVA.");
+        // IVA y total se calculan en backend (15%), no se validan desde el request.
 
         if (!string.IsNullOrWhiteSpace(dto.OrigenCanalReserva))
         {

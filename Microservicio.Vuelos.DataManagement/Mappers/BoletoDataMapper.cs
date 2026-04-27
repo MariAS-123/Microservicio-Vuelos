@@ -1,4 +1,4 @@
-﻿using Microservicio.Vuelos.DataAccess.Entities;
+using Microservicio.Vuelos.DataAccess.Entities;
 using Microservicio.Vuelos.DataManagement.Models;
 
 namespace Microservicio.Vuelos.DataManagement.Mappers;
@@ -39,7 +39,9 @@ public static class BoletoDataMapper
         IdVuelo = model.IdVuelo,
         IdAsiento = model.IdAsiento,
         IdFactura = model.IdFactura,
-        CodigoBoleto = model.CodigoBoleto.Trim().ToUpperInvariant(),
+        CodigoBoleto = string.IsNullOrWhiteSpace(model.CodigoBoleto)
+            ? $"BO-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}"
+            : model.CodigoBoleto.Trim().ToUpperInvariant(),
         Clase = model.Clase.Trim().ToUpperInvariant(),
         PrecioVueloBase = model.PrecioVueloBase,
         PrecioAsientoExtra = model.PrecioAsientoExtra,
@@ -56,7 +58,9 @@ public static class BoletoDataMapper
         Estado = string.IsNullOrWhiteSpace(model.Estado)
             ? "ACTIVO"
             : model.Estado.Trim().ToUpperInvariant(),
-        CreadoPorUsuario = model.CreadoPorUsuario.Trim(),
+        CreadoPorUsuario = string.IsNullOrWhiteSpace(model.CreadoPorUsuario)
+            ? "SYSTEM"
+            : model.CreadoPorUsuario.Trim(),
         FechaRegistroUtc = model.FechaRegistroUtc == default
             ? DateTime.UtcNow
             : model.FechaRegistroUtc,

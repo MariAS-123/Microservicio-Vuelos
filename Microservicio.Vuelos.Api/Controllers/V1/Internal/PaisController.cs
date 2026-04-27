@@ -23,6 +23,7 @@ public class PaisController : ControllerBase
 
     // GET /paises
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<object>>> GetPaged([FromQuery] PaisFilterDto filter)
     {
@@ -33,6 +34,7 @@ public class PaisController : ControllerBase
 
     // GET /paises/{id_pais}
     [HttpGet("{id_pais:int}")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<PaisResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<PaisResponseDto>>> GetById(int id_pais)
