@@ -34,8 +34,8 @@ public static class ReservaBusinessMapper
             IdPasajero = dto.IdPasajero,
             IdVuelo = dto.IdVuelo,
             IdAsiento = dto.IdAsiento,
-            FechaInicio = dto.FechaInicio,
-            FechaFin = dto.FechaFin,
+            FechaInicio = dto.FechaInicio ?? default,
+            FechaFin = dto.FechaFin ?? default,
             SubtotalReserva = subtotal,
             ValorIva = valorIva,
             TotalReserva = total,
@@ -46,7 +46,18 @@ public static class ReservaBusinessMapper
             EstadoReserva = "PEN",
             EsEliminado = false,
             CreadoPorUsuario = creadoPorUsuario,
-            ServicioOrigen = "VUELOS"
+            ServicioOrigen = "VUELOS",
+            Detalles = dto.Detalles.Select(d => new ReservaDetalleDataModel
+            {
+                IdPasajero = d.IdPasajero,
+                IdAsiento = d.IdAsiento,
+                SubtotalLinea = Math.Round(d.SubtotalLinea, 2, MidpointRounding.AwayFromZero),
+                ValorIvaLinea = Math.Round(d.ValorIvaLinea, 2, MidpointRounding.AwayFromZero),
+                TotalLinea = Math.Round(d.TotalLinea, 2, MidpointRounding.AwayFromZero),
+                Estado = "ACTIVO",
+                EsEliminado = false,
+                CreadoPorUsuario = creadoPorUsuario
+            }).ToList()
         };
     }
 
@@ -85,7 +96,18 @@ public static class ReservaBusinessMapper
             MotivoCancelacion = model.MotivoCancelacion,
             ContactoEmail = model.ContactoEmail,
             ContactoTelefono = model.ContactoTelefono,
-            Observaciones = model.Observaciones
+            Observaciones = model.Observaciones,
+            Detalles = model.Detalles
+                .Where(d => !d.EsEliminado)
+                .Select(d => new ReservaDetalleResponseDto
+                {
+                    IdDetalle = d.IdDetalle,
+                    IdPasajero = d.IdPasajero,
+                    IdAsiento = d.IdAsiento,
+                    SubtotalLinea = d.SubtotalLinea,
+                    ValorIvaLinea = d.ValorIvaLinea,
+                    TotalLinea = d.TotalLinea
+                }).ToList()
         };
     }
 

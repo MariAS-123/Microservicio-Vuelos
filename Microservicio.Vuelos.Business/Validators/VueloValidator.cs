@@ -171,7 +171,7 @@ public class VueloValidator
             errors.Add("Si envías aeropuerto de origen, también debes enviar aeropuerto de destino (y viceversa).");
 
         if (origenDefinido && destinoDefinido &&
-            dto.IdAeropuertoOrigen.Value == dto.IdAeropuertoDestino.Value)
+            dto.IdAeropuertoOrigen!.Value == dto.IdAeropuertoDestino!.Value)
             errors.Add("El aeropuerto de origen debe ser distinto al aeropuerto de destino.");
 
         if (dto.Page <= 0)

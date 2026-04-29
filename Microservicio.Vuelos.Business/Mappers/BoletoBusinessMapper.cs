@@ -23,6 +23,7 @@ public static class BoletoBusinessMapper
         return new BoletoDataModel
         {
             IdReserva = dto.IdReserva,
+            IdDetalle = dto.IdDetalle,
             IdVuelo = dto.IdVuelo,
             IdAsiento = dto.IdAsiento,
             IdFactura = dto.IdFactura,
@@ -56,6 +57,7 @@ public static class BoletoBusinessMapper
             IdBoleto = model.IdBoleto,
             CodigoBoleto = model.CodigoBoleto,
             IdReserva = model.IdReserva,
+            IdDetalle = model.IdDetalle,
             IdVuelo = model.IdVuelo,
             IdAsiento = model.IdAsiento,
             IdFactura = model.IdFactura,

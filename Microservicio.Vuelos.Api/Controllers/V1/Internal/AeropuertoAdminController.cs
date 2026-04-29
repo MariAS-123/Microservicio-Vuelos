@@ -23,6 +23,7 @@ public class AeropuertoAdminController : ControllerBase
 
     // GET PAGINADO � Todos los roles autenticados
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<object>>> GetPaged([FromQuery] AeropuertoFilterDto filter)
     {
@@ -33,6 +34,7 @@ public class AeropuertoAdminController : ControllerBase
 
     // GET BY ID � Todos los roles autenticados
     [HttpGet("{id_aeropuerto:int}")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<AeropuertoResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<AeropuertoResponseDto>>> GetById(int id_aeropuerto)

@@ -22,7 +22,7 @@ public class EquipajeController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "ADMINISTRADOR,AEROLINEA,CLIENTE")]
+    [Authorize(Roles = "ADMINISTRADOR,AEROLINEA")]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<object>>> GetPaged(int id_boleto, [FromQuery] EquipajeFilterDto filter)
     {

@@ -17,6 +17,7 @@ public class ReservaRepository : IReservaRepository
     public async Task<IEnumerable<ReservaEntity>> ObtenerTodosAsync(CancellationToken cancellationToken = default)
     {
         return await _context.Reservas
+            .Include(r => r.Detalles)
             .AsNoTracking()
             .Where(r => !r.EsEliminado)
             .OrderByDescending(r => r.FechaReservaUtc)
@@ -26,6 +27,7 @@ public class ReservaRepository : IReservaRepository
     public async Task<ReservaEntity?> ObtenerPorIdAsync(int idReserva, CancellationToken cancellationToken = default)
     {
         return await _context.Reservas
+            .Include(r => r.Detalles)
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.IdReserva == idReserva && !r.EsEliminado, cancellationToken);
     }
@@ -34,12 +36,14 @@ public class ReservaRepository : IReservaRepository
     public async Task<ReservaEntity?> ObtenerPorIdParaEditarAsync(int idReserva, CancellationToken cancellationToken = default)
     {
         return await _context.Reservas
+            .Include(r => r.Detalles)
             .FirstOrDefaultAsync(r => r.IdReserva == idReserva && !r.EsEliminado, cancellationToken);
     }
 
     public async Task<ReservaEntity?> ObtenerPorGuidAsync(Guid guidReserva, CancellationToken cancellationToken = default)
     {
         return await _context.Reservas
+            .Include(r => r.Detalles)
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.GuidReserva == guidReserva && !r.EsEliminado, cancellationToken);
     }
@@ -47,6 +51,7 @@ public class ReservaRepository : IReservaRepository
     public async Task<ReservaEntity?> ObtenerPorCodigoAsync(string codigoReserva, CancellationToken cancellationToken = default)
     {
         return await _context.Reservas
+            .Include(r => r.Detalles)
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.CodigoReserva == codigoReserva && !r.EsEliminado, cancellationToken);
     }
@@ -54,6 +59,7 @@ public class ReservaRepository : IReservaRepository
     public async Task<IEnumerable<ReservaEntity>> ObtenerPorClienteAsync(int idCliente, CancellationToken cancellationToken = default)
     {
         return await _context.Reservas
+            .Include(r => r.Detalles)
             .AsNoTracking()
             .Where(r => r.IdCliente == idCliente && !r.EsEliminado)
             .OrderByDescending(r => r.FechaReservaUtc)
@@ -63,8 +69,9 @@ public class ReservaRepository : IReservaRepository
     public async Task<IEnumerable<ReservaEntity>> ObtenerPorPasajeroAsync(int idPasajero, CancellationToken cancellationToken = default)
     {
         return await _context.Reservas
+            .Include(r => r.Detalles)
             .AsNoTracking()
-            .Where(r => r.IdPasajero == idPasajero && !r.EsEliminado)
+            .Where(r => !r.EsEliminado && r.Detalles.Any(d => !d.EsEliminado && d.IdPasajero == idPasajero))
             .OrderByDescending(r => r.FechaReservaUtc)
             .ToListAsync(cancellationToken);
     }
@@ -72,6 +79,7 @@ public class ReservaRepository : IReservaRepository
     public async Task<IEnumerable<ReservaEntity>> ObtenerPorVueloAsync(int idVuelo, CancellationToken cancellationToken = default)
     {
         return await _context.Reservas
+            .Include(r => r.Detalles)
             .AsNoTracking()
             .Where(r => r.IdVuelo == idVuelo && !r.EsEliminado)
             .OrderByDescending(r => r.FechaReservaUtc)
@@ -81,22 +89,25 @@ public class ReservaRepository : IReservaRepository
     public async Task<ReservaEntity?> ObtenerPorAsientoAsync(int idAsiento, CancellationToken cancellationToken = default)
     {
         return await _context.Reservas
+            .Include(r => r.Detalles)
             .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.IdAsiento == idAsiento && !r.EsEliminado, cancellationToken);
+            .FirstOrDefaultAsync(r => !r.EsEliminado && r.Detalles.Any(d => !d.EsEliminado && d.IdAsiento == idAsiento), cancellationToken);
     }
 
     public async Task<ReservaEntity?> ObtenerPorVueloYAsientoAsync(int idVuelo, int idAsiento, CancellationToken cancellationToken = default)
     {
         return await _context.Reservas
+            .Include(r => r.Detalles)
             .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.IdVuelo == idVuelo && r.IdAsiento == idAsiento && !r.EsEliminado, cancellationToken);
+            .FirstOrDefaultAsync(r => r.IdVuelo == idVuelo && !r.EsEliminado && r.Detalles.Any(d => !d.EsEliminado && d.IdAsiento == idAsiento), cancellationToken);
     }
 
     public async Task<ReservaEntity?> ObtenerPorVueloYPasajeroAsync(int idVuelo, int idPasajero, CancellationToken cancellationToken = default)
     {
         return await _context.Reservas
+            .Include(r => r.Detalles)
             .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.IdVuelo == idVuelo && r.IdPasajero == idPasajero && !r.EsEliminado, cancellationToken);
+            .FirstOrDefaultAsync(r => r.IdVuelo == idVuelo && !r.EsEliminado && r.Detalles.Any(d => !d.EsEliminado && d.IdPasajero == idPasajero), cancellationToken);
     }
 
     public async Task<bool> ExistePorIdAsync(int idReserva, CancellationToken cancellationToken = default)
@@ -120,13 +131,13 @@ public class ReservaRepository : IReservaRepository
     public async Task<bool> ExistePorVueloYAsientoAsync(int idVuelo, int idAsiento, CancellationToken cancellationToken = default)
     {
         return await _context.Reservas
-            .AnyAsync(r => r.IdVuelo == idVuelo && r.IdAsiento == idAsiento && !r.EsEliminado, cancellationToken);
+            .AnyAsync(r => r.IdVuelo == idVuelo && !r.EsEliminado && r.Detalles.Any(d => !d.EsEliminado && d.IdAsiento == idAsiento), cancellationToken);
     }
 
     public async Task<bool> ExistePorVueloYPasajeroAsync(int idVuelo, int idPasajero, CancellationToken cancellationToken = default)
     {
         return await _context.Reservas
-            .AnyAsync(r => r.IdVuelo == idVuelo && r.IdPasajero == idPasajero && !r.EsEliminado, cancellationToken);
+            .AnyAsync(r => r.IdVuelo == idVuelo && !r.EsEliminado && r.Detalles.Any(d => !d.EsEliminado && d.IdPasajero == idPasajero), cancellationToken);
     }
 
     public async Task AgregarAsync(ReservaEntity entity, CancellationToken cancellationToken = default)

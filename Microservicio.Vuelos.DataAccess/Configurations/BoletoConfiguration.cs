@@ -24,6 +24,10 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
                 .HasColumnName("id_reserva")
                 .IsRequired();
 
+            builder.Property(e => e.IdDetalle)
+                .HasColumnName("id_detalle")
+                .IsRequired();
+
             builder.Property(e => e.IdVuelo)
                 .HasColumnName("id_vuelo")
                 .IsRequired();
@@ -138,6 +142,13 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
             builder.HasIndex(e => e.IdReserva)
                 .HasDatabaseName("IX_Boleto_Reserva");
 
+            builder.HasIndex(e => e.IdDetalle)
+                .HasDatabaseName("IX_Boleto_Detalle");
+
+            builder.HasIndex(e => e.IdDetalle)
+                .IsUnique()
+                .HasDatabaseName("UQ_Boleto_Detalle");
+
             builder.HasIndex(e => e.IdVuelo)
                 .HasDatabaseName("IX_Boleto_Vuelo");
 
@@ -146,6 +157,12 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
                 .HasForeignKey(e => e.IdReserva)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("FK_Boleto_Reserva");
+
+            builder.HasOne(e => e.Detalle)
+                .WithOne(d => d.Boleto)
+                .HasForeignKey<BoletoEntity>(e => e.IdDetalle)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_Boleto_Detalle");
 
             builder.HasOne(e => e.Vuelo)
                 .WithMany(v => v.Boletos)

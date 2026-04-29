@@ -11,6 +11,8 @@ namespace Microservicio.Vuelos.DataAccess.Entities
 
         public int IdReserva { get; set; }
 
+        public int IdDetalle { get; set; }
+
         public int IdVuelo { get; set; }
 
         public int IdAsiento { get; set; }
@@ -51,6 +53,8 @@ namespace Microservicio.Vuelos.DataAccess.Entities
 
         // Navigation properties
         public virtual ReservaEntity Reserva { get; set; } = null!;
+
+        public virtual ReservaDetalleEntity Detalle { get; set; } = null!;
 
         public virtual VueloEntity Vuelo { get; set; } = null!;
 

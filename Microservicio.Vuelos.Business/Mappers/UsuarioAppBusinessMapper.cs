@@ -40,6 +40,7 @@ public static class UsuarioAppBusinessMapper
     public static UsuarioAppDataModel ToDataModel(
         int idUsuario,
         UsuarioAppUpdateRequestDto dto,
+        UsuarioAppDataModel actual,
         string modificadoPorUsuario,
         byte[]? passwordHash = null,
         byte[]? passwordSalt = null)
@@ -47,13 +48,17 @@ public static class UsuarioAppBusinessMapper
         return new UsuarioAppDataModel
         {
             IdUsuario = idUsuario,
-            IdCliente = dto.IdCliente,
-            Username = dto.Username,
+            IdCliente = actual.IdCliente,
+            Username = actual.Username,
             Correo = dto.Correo,
-            PasswordHash = passwordHash != null ? Convert.ToBase64String(passwordHash) : string.Empty,
-            PasswordSalt = passwordSalt != null ? Convert.ToBase64String(passwordSalt) : string.Empty,
-            EstadoUsuario = "ACT",
-            Activo = true,
+            PasswordHash = passwordHash != null ? Convert.ToBase64String(passwordHash) : actual.PasswordHash,
+            PasswordSalt = passwordSalt != null ? Convert.ToBase64String(passwordSalt) : actual.PasswordSalt,
+            EstadoUsuario = actual.EstadoUsuario,
+            Activo = actual.Activo,
+            EsEliminado = actual.EsEliminado,
+            FechaUltimoLogin = actual.FechaUltimoLogin,
+            CreadoPorUsuario = actual.CreadoPorUsuario,
+            FechaRegistroUtc = actual.FechaRegistroUtc,
             ModificadoPorUsuario = modificadoPorUsuario
         };
     }

@@ -20,7 +20,6 @@ public static class ClienteDataMapper
         IdCiudadResidencia = entity.IdCiudadResidencia,
         IdPaisNacionalidad = entity.IdPaisNacionalidad,
         FechaNacimiento = entity.FechaNacimiento,
-        Nacionalidad = entity.Nacionalidad,
         Genero = entity.Genero,
         Estado = entity.Estado,
         EsEliminado = entity.EsEliminado,
@@ -50,7 +49,6 @@ public static class ClienteDataMapper
         IdCiudadResidencia = model.IdCiudadResidencia,
         IdPaisNacionalidad = model.IdPaisNacionalidad,
         FechaNacimiento = model.FechaNacimiento,
-        Nacionalidad = string.IsNullOrWhiteSpace(model.Nacionalidad) ? null : model.Nacionalidad.Trim(),
         Genero = string.IsNullOrWhiteSpace(model.Genero) ? null : model.Genero.Trim().ToUpperInvariant(),
         Estado = string.IsNullOrWhiteSpace(model.Estado) ? "ACT" : model.Estado.Trim().ToUpperInvariant(),
         EsEliminado = model.EsEliminado,
@@ -78,7 +76,6 @@ public static class ClienteDataMapper
         entity.IdCiudadResidencia = model.IdCiudadResidencia;
         entity.IdPaisNacionalidad = model.IdPaisNacionalidad;
         entity.FechaNacimiento = model.FechaNacimiento;
-        entity.Nacionalidad = string.IsNullOrWhiteSpace(model.Nacionalidad) ? null : model.Nacionalidad.Trim();
         entity.Genero = string.IsNullOrWhiteSpace(model.Genero) ? null : model.Genero.Trim().ToUpperInvariant();
         entity.Estado = string.IsNullOrWhiteSpace(model.Estado)
             ? entity.Estado

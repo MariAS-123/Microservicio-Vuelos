@@ -15,16 +15,19 @@ public class PasajeroService : IPasajeroService
 {
     private readonly IPasajeroDataService _pasajeroDataService;
     private readonly IClienteDataService _clienteDataService;
+    private readonly IPaisDataService _paisDataService;
     private readonly IReservaDataService _reservaDataService;
     private readonly PasajeroValidator _validator;
 
     public PasajeroService(
         IPasajeroDataService pasajeroDataService,
         IClienteDataService clienteDataService,
+        IPaisDataService paisDataService,
         IReservaDataService reservaDataService)
     {
         _pasajeroDataService = pasajeroDataService;
         _clienteDataService = clienteDataService;
+        _paisDataService = paisDataService;
         _reservaDataService = reservaDataService;
         _validator = new PasajeroValidator();
     }
@@ -95,6 +98,13 @@ public class PasajeroService : IPasajeroService
                 throw new BusinessException("El cliente indicado está inactivo o eliminado.");
         }
 
+        if (request.IdPaisNacionalidad.HasValue)
+        {
+            var pais = await _paisDataService.GetByIdAsync(request.IdPaisNacionalidad.Value);
+            if (pais == null)
+                throw new NotFoundException("El país de nacionalidad del pasajero no existe.");
+        }
+
         var existentes = await _pasajeroDataService.GetPagedAsync(new PasajeroFiltroDataModel
         {
             PageNumber = 1,
@@ -138,6 +148,13 @@ public class PasajeroService : IPasajeroService
                 throw new NotFoundException("El cliente indicado no existe.");
             if (cliente.EsEliminado || cliente.Estado != "ACT")
                 throw new BusinessException("El cliente indicado está inactivo o eliminado.");
+        }
+
+        if (request.IdPaisNacionalidad.HasValue)
+        {
+            var pais = await _paisDataService.GetByIdAsync(request.IdPaisNacionalidad.Value);
+            if (pais == null)
+                throw new NotFoundException("El país de nacionalidad del pasajero no existe.");
         }
 
         var existentes = await _pasajeroDataService.GetPagedAsync(new PasajeroFiltroDataModel

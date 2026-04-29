@@ -23,6 +23,7 @@ public class EscalaAdminController : ControllerBase
 
     // GET /vuelos/{id_vuelo}/escalas
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<object>>> GetPaged(
         int id_vuelo,
@@ -51,6 +52,7 @@ public class EscalaAdminController : ControllerBase
 
     // GET /vuelos/{id_vuelo}/escalas/{id_escala}
     [HttpGet("{id_escala:int}")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<EscalaResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<EscalaResponseDto>>> GetById(int id_vuelo, int id_escala)

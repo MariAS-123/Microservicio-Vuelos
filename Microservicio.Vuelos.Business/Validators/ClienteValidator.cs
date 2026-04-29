@@ -12,7 +12,6 @@ public class ClienteValidator
         "CEDULA",
         "PASAPORTE",
         "RUC",
-        "TARJETA_IDENTIDAD",
         "OTRO"
     ];
 
@@ -76,7 +75,7 @@ public class ClienteValidator
             var tipoIdentificacion = dto.TipoIdentificacion.Trim().ToUpperInvariant();
 
             if (!TiposIdentificacionValidos.Contains(tipoIdentificacion))
-                errors.Add("El tipo de identificación debe ser CEDULA, PASAPORTE, RUC, TARJETA_IDENTIDAD u OTRO.");
+                errors.Add("El tipo de identificación debe ser CEDULA, PASAPORTE, RUC u OTRO.");
         }
 
         if (string.IsNullOrWhiteSpace(dto.NumeroIdentificacion))
@@ -100,8 +99,8 @@ public class ClienteValidator
         if (!string.IsNullOrWhiteSpace(dto.Apellidos) && dto.Apellidos.Trim().Length > 160)
             errors.Add("Los apellidos no pueden exceder 160 caracteres.");
 
-        if (!string.IsNullOrWhiteSpace(dto.RazonSocial) && dto.RazonSocial.Trim().Length > 160)
-            errors.Add("La razón social no puede exceder 160 caracteres.");
+        if (!string.IsNullOrWhiteSpace(dto.RazonSocial) && dto.RazonSocial.Trim().Length > 200)
+            errors.Add("La razón social no puede exceder 200 caracteres.");
 
         if (string.IsNullOrWhiteSpace(dto.Correo))
         {
@@ -142,9 +141,6 @@ public class ClienteValidator
         if (dto.IdPaisNacionalidad <= 0)
             errors.Add("El país de nacionalidad es obligatorio.");
 
-        if (!string.IsNullOrWhiteSpace(dto.Nacionalidad) && dto.Nacionalidad.Trim().Length > 80)
-            errors.Add("La nacionalidad no puede exceder 80 caracteres.");
-
         if (!string.IsNullOrWhiteSpace(dto.Genero))
         {
             var genero = dto.Genero.Trim().ToUpperInvariant();
@@ -175,7 +171,6 @@ public class ClienteValidator
             IdCiudadResidencia = dto.IdCiudadResidencia,
             IdPaisNacionalidad = dto.IdPaisNacionalidad,
             FechaNacimiento = dto.FechaNacimiento,
-            Nacionalidad = dto.Nacionalidad,
             Genero = dto.Genero
         };
 

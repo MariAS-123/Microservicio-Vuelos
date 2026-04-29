@@ -18,5 +18,12 @@ public interface IReservaService
         int? idClienteDelToken,
         string rolDelToken);
 
+    Task<ReservaPagarResponseDto?> PagarAsync(
+        int idReserva,
+        ReservaPagarRequestDto request,
+        string modificadoPorUsuario,
+        int? idClienteDelToken,
+        string rolDelToken);
+
     Task<bool> DeleteAsync(int idReserva, string modificadoPorUsuario);
 }

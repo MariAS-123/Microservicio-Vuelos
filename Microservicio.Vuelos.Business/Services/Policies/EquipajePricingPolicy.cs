@@ -4,11 +4,10 @@ namespace Microservicio.Vuelos.Business.Services.Policies;
 
 public static class EquipajePricingPolicy
 {
-    private const decimal BodegaBaseHasta23Kg = 25.00m;
-    private const decimal PrecioPorKgExcesoBodega = 3.00m;
-    private const decimal PesoMaximoBodegaKg = 32.00m;
+    private const decimal PrecioFijoBodega = 45.00m;
+    private const decimal PesoMaximoBodegaKg = 23.00m;
     private const decimal PesoMaximoManoKg = 10.00m;
-    private const string DimensionesEstandarMano = "55x35x25 cm";
+    private const string DimensionesEstandarMano = "55x40x20";
     private const string DimensionesEstandarBodega = "158 cm lineales max";
 
     public static decimal CalcularPrecioExtra(string tipoEquipaje, decimal pesoKg)
@@ -49,12 +48,8 @@ public static class EquipajePricingPolicy
     private static decimal CalcularBodega(decimal pesoKg)
     {
         if (pesoKg > PesoMaximoBodegaKg)
-            throw new BusinessException("El equipaje de bodega no puede superar 32 kg.");
+            throw new BusinessException("El equipaje de bodega no puede superar 23 kg.");
 
-        if (pesoKg <= 23m)
-            return BodegaBaseHasta23Kg;
-
-        var kgExceso = Math.Ceiling(pesoKg - 23m);
-        return BodegaBaseHasta23Kg + (kgExceso * PrecioPorKgExcesoBodega);
+        return PrecioFijoBodega;
     }
 }

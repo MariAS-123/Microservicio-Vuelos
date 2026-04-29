@@ -20,8 +20,7 @@ namespace Microservicio.Vuelos.DataAccess.Entities
         public string NumeroDocumentoPasajero { get; set; } = null!;
 
         public DateTime? FechaNacimientoPasajero { get; set; }
-
-        public string? NacionalidadPasajero { get; set; }
+        public int? IdPaisNacionalidad { get; set; }
 
         public string? EmailContactoPasajero { get; set; }
 
@@ -48,7 +47,8 @@ namespace Microservicio.Vuelos.DataAccess.Entities
         public string? ModificacionIp { get; set; }
 
         public virtual ClienteEntity? Cliente { get; set; }
+        public virtual PaisEntity? PaisNacionalidad { get; set; }
 
-        public virtual ICollection<ReservaEntity> Reservas { get; set; } = new HashSet<ReservaEntity>();
+        public virtual ICollection<ReservaDetalleEntity> ReservaDetalles { get; set; } = new HashSet<ReservaDetalleEntity>();
     }
 }

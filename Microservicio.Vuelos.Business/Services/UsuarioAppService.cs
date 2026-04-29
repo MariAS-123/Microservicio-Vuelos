@@ -111,27 +111,13 @@ public class UsuarioAppService : IUsuarioAppService
         if (actual == null)
             throw new NotFoundException("Usuario no encontrado.");
 
-        if (request.IdCliente.HasValue)
-        {
-            var cliente = await _clienteDataService.GetByIdAsync(request.IdCliente.Value);
-            if (cliente == null)
-                throw new NotFoundException("El cliente indicado no existe.");
-        }
-
         var existentes = await _usuarioAppDataService.GetPagedAsync(new UsuarioAppFiltroDataModel
         {
             PageNumber = 1,
             PageSize = 10000
         });
 
-        var username = request.Username.Trim().ToUpperInvariant();
         var correo = request.Correo.Trim().ToUpperInvariant();
-
-        if (existentes.Items.Any(x => x.IdUsuario != idUsuario &&
-                                      x.Username.Trim().ToUpperInvariant() == username))
-        {
-            throw new BusinessException("Ya existe otro usuario con el mismo username.");
-        }
 
         if (existentes.Items.Any(x => x.IdUsuario != idUsuario &&
                                       x.Correo.Trim().ToUpperInvariant() == correo))
@@ -151,15 +137,10 @@ public class UsuarioAppService : IUsuarioAppService
         var dataModel = UsuarioAppBusinessMapper.ToDataModel(
             idUsuario,
             request,
+            actual,
             modificadoPorUsuario,
             passwordHash,
             passwordSalt);
-
-        if (passwordHash == null)
-            dataModel.PasswordHash = actual.PasswordHash;
-
-        if (passwordSalt == null)
-            dataModel.PasswordSalt = actual.PasswordSalt;
 
         var actualizado = await _usuarioAppDataService.UpdateAsync(dataModel);
 

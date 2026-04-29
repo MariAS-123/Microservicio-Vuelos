@@ -55,6 +55,15 @@ public class ReservaAdminController : ControllerBase
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ApiResponse<ReservaResponseDto>>> Create([FromBody] ReservaRequestDto request)
     {
+        if (GetRol() == "CLIENTE")
+        {
+            var idCliente = GetIdCliente();
+            if (idCliente is null)
+                return Unauthorized(ApiResponse<ReservaResponseDto>.Fail("No se pudo identificar el cliente del token."));
+
+            request.IdCliente = idCliente.Value;
+        }
+
         var result = await _reservaService.CreateAsync(request, GetUsuario());
 
         return CreatedAtAction(
@@ -79,6 +88,21 @@ public class ReservaAdminController : ControllerBase
             return NotFound(ApiResponse<ReservaResponseDto>.Fail("Reserva no encontrada."));
 
         return Ok(ApiResponse<ReservaResponseDto>.Ok(result, "Estado de reserva actualizado correctamente."));
+    }
+
+    [HttpPatch("{id_reserva:int}/pagar")]
+    [Authorize(Roles = "ADMINISTRADOR,AEROLINEA,CLIENTE")]
+    [ProducesResponseType(typeof(ApiResponse<ReservaPagarResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<ReservaPagarResponseDto>>> Pagar(int id_reserva, [FromBody] ReservaPagarRequestDto request)
+    {
+        var result = await _reservaService.PagarAsync(id_reserva, request, GetUsuario(), GetIdCliente(), GetRol());
+
+        if (result is null)
+            return NotFound(ApiResponse<ReservaPagarResponseDto>.Fail("Reserva no encontrada."));
+
+        return Ok(ApiResponse<ReservaPagarResponseDto>.Ok(result, "Pago de reserva procesado correctamente."));
     }
 
     private string GetUsuario() =>

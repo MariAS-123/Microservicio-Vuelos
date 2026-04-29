@@ -4,6 +4,8 @@ public class BoletoRequestDto
 {
     public int IdReserva { get; set; }
 
+    public int IdDetalle { get; set; }
+
     public int IdVuelo { get; set; }
 
     public int IdAsiento { get; set; }

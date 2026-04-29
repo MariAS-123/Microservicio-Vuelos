@@ -51,10 +51,8 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
                 .HasColumnName("fecha_nacimiento_pasajero")
                 .HasColumnType("date");
 
-            builder.Property(e => e.NacionalidadPasajero)
-                .HasColumnName("nacionalidad_pasajero")
-                .HasMaxLength(80)
-                .IsUnicode(false);
+            builder.Property(e => e.IdPaisNacionalidad)
+                .HasColumnName("id_pais_nacionalidad");
 
             builder.Property(e => e.EmailContactoPasajero)
                 .HasColumnName("email_contacto_pasajero")
@@ -123,11 +121,20 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
             builder.HasIndex(e => e.IdCliente)
                 .HasDatabaseName("IX_Pasajero_Cliente");
 
+            builder.HasIndex(e => e.IdPaisNacionalidad)
+                .HasDatabaseName("IX_Pasajero_Pais");
+
             builder.HasOne(e => e.Cliente)
                 .WithMany(c => c.Pasajeros)
                 .HasForeignKey(e => e.IdCliente)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("FK_Pasajero_Cliente");
+
+            builder.HasOne(e => e.PaisNacionalidad)
+                .WithMany(p => p.PasajerosNacionalidad)
+                .HasForeignKey(e => e.IdPaisNacionalidad)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_Pasajero_Pais");
         }
     }
 }

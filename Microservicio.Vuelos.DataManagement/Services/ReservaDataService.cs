@@ -37,7 +37,7 @@ public class ReservaDataService : IReservaDataService
             query = query.Where(x => x.IdCliente == filtro.IdCliente.Value);
 
         if (filtro.IdPasajero.HasValue)
-            query = query.Where(x => x.IdPasajero == filtro.IdPasajero.Value);
+            query = query.Where(x => x.Detalles.Any(d => d.IdPasajero == filtro.IdPasajero.Value && !d.EsEliminado));
 
         if (filtro.IdVuelo.HasValue)
             query = query.Where(x => x.IdVuelo == filtro.IdVuelo.Value);

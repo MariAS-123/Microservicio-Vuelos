@@ -15,7 +15,7 @@ public static class PasajeroDataMapper
         TipoDocumentoPasajero = entity.TipoDocumentoPasajero,
         NumeroDocumentoPasajero = entity.NumeroDocumentoPasajero,
         FechaNacimientoPasajero = entity.FechaNacimientoPasajero,
-        NacionalidadPasajero = entity.NacionalidadPasajero,
+        IdPaisNacionalidad = entity.IdPaisNacionalidad,
         EmailContactoPasajero = entity.EmailContactoPasajero,
         TelefonoContactoPasajero = entity.TelefonoContactoPasajero,
         GeneroPasajero = entity.GeneroPasajero,
@@ -39,9 +39,7 @@ public static class PasajeroDataMapper
         TipoDocumentoPasajero = model.TipoDocumentoPasajero.Trim().ToUpperInvariant(),
         NumeroDocumentoPasajero = model.NumeroDocumentoPasajero.Trim(),
         FechaNacimientoPasajero = model.FechaNacimientoPasajero,
-        NacionalidadPasajero = string.IsNullOrWhiteSpace(model.NacionalidadPasajero)
-            ? null
-            : model.NacionalidadPasajero.Trim(),
+        IdPaisNacionalidad = model.IdPaisNacionalidad,
         EmailContactoPasajero = string.IsNullOrWhiteSpace(model.EmailContactoPasajero)
             ? null
             : model.EmailContactoPasajero.Trim().ToLowerInvariant(),
@@ -80,9 +78,7 @@ public static class PasajeroDataMapper
         entity.TipoDocumentoPasajero = model.TipoDocumentoPasajero.Trim().ToUpperInvariant();
         entity.NumeroDocumentoPasajero = model.NumeroDocumentoPasajero.Trim();
         entity.FechaNacimientoPasajero = model.FechaNacimientoPasajero;
-        entity.NacionalidadPasajero = string.IsNullOrWhiteSpace(model.NacionalidadPasajero)
-            ? null
-            : model.NacionalidadPasajero.Trim();
+        entity.IdPaisNacionalidad = model.IdPaisNacionalidad;
         entity.EmailContactoPasajero = string.IsNullOrWhiteSpace(model.EmailContactoPasajero)
             ? null
             : model.EmailContactoPasajero.Trim().ToLowerInvariant();

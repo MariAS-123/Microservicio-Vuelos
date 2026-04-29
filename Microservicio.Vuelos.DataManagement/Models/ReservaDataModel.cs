@@ -6,8 +6,10 @@ public class ReservaDataModel
     public Guid GuidReserva { get; set; }
     public string CodigoReserva { get; set; } = null!;
     public int IdCliente { get; set; }
+    // Campo puente mientras el negocio migra completamente a ReservaDetalle.
     public int IdPasajero { get; set; }
     public int IdVuelo { get; set; }
+    // Campo puente mientras el negocio migra completamente a ReservaDetalle.
     public int IdAsiento { get; set; }
     public DateTime FechaReservaUtc { get; set; }
     public DateTime FechaInicio { get; set; }
@@ -33,4 +35,5 @@ public class ReservaDataModel
     public DateTime? FechaInhabilitacionUtc { get; set; }
     public string? MotivoInhabilitacion { get; set; }
     public byte[] RowVersion { get; set; } = null!;
+    public List<ReservaDetalleDataModel> Detalles { get; set; } = new();
 }

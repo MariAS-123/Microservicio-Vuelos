@@ -107,8 +107,8 @@ public class PasajeroValidator
             errors.Add("El número de documento del pasajero no puede exceder 30 caracteres.");
         }
 
-        if (!string.IsNullOrWhiteSpace(dto.NacionalidadPasajero) && dto.NacionalidadPasajero.Trim().Length > 80)
-            errors.Add("La nacionalidad del pasajero no puede exceder 80 caracteres.");
+        if (dto.IdPaisNacionalidad.HasValue && dto.IdPaisNacionalidad.Value <= 0)
+            errors.Add("El país de nacionalidad del pasajero debe ser mayor que 0.");
 
         if (!string.IsNullOrWhiteSpace(dto.EmailContactoPasajero))
         {
@@ -121,14 +121,14 @@ public class PasajeroValidator
                 errors.Add("El correo de contacto del pasajero no tiene un formato válido.");
         }
 
-        if (!string.IsNullOrWhiteSpace(dto.TelefonoContactoPasajero) && dto.TelefonoContactoPasajero.Trim().Length > 30)
-            errors.Add("El teléfono de contacto del pasajero no puede exceder 30 caracteres.");
+        if (!string.IsNullOrWhiteSpace(dto.TelefonoContactoPasajero) && dto.TelefonoContactoPasajero.Trim().Length > 20)
+            errors.Add("El teléfono de contacto del pasajero no puede exceder 20 caracteres.");
 
         if (!string.IsNullOrWhiteSpace(dto.GeneroPasajero) && dto.GeneroPasajero.Trim().Length > 20)
             errors.Add("El género del pasajero no puede exceder 20 caracteres.");
 
-        if (!string.IsNullOrWhiteSpace(dto.ObservacionesPasajero) && dto.ObservacionesPasajero.Trim().Length > 500)
-            errors.Add("Las observaciones del pasajero no pueden exceder 500 caracteres.");
+        if (!string.IsNullOrWhiteSpace(dto.ObservacionesPasajero) && dto.ObservacionesPasajero.Trim().Length > 255)
+            errors.Add("Las observaciones del pasajero no pueden exceder 255 caracteres.");
 
         return errors;
     }
@@ -143,7 +143,7 @@ public class PasajeroValidator
             TipoDocumentoPasajero = dto.TipoDocumentoPasajero,
             NumeroDocumentoPasajero = dto.NumeroDocumentoPasajero,
             FechaNacimientoPasajero = dto.FechaNacimientoPasajero,
-            NacionalidadPasajero = dto.NacionalidadPasajero,
+            IdPaisNacionalidad = dto.IdPaisNacionalidad,
             EmailContactoPasajero = dto.EmailContactoPasajero,
             TelefonoContactoPasajero = dto.TelefonoContactoPasajero,
             GeneroPasajero = dto.GeneroPasajero,

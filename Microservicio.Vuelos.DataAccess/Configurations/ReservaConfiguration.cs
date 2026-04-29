@@ -31,16 +31,8 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
                 .HasColumnName("id_cliente")
                 .IsRequired();
 
-            builder.Property(e => e.IdPasajero)
-                .HasColumnName("id_pasajero")
-                .IsRequired();
-
             builder.Property(e => e.IdVuelo)
                 .HasColumnName("id_vuelo")
-                .IsRequired();
-
-            builder.Property(e => e.IdAsiento)
-                .HasColumnName("id_asiento")
                 .IsRequired();
 
             builder.Property(e => e.FechaReservaUtc)
@@ -178,14 +170,6 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
                 .IsUnique()
                 .HasDatabaseName("UQ_RESERVAS_CODIGO");
 
-            builder.HasIndex(e => new { e.IdVuelo, e.IdAsiento })
-                .IsUnique()
-                .HasDatabaseName("UQ_RESERVAS_Vuelo_Asiento");
-
-            builder.HasIndex(e => new { e.IdVuelo, e.IdPasajero })
-                .IsUnique()
-                .HasDatabaseName("UQ_RESERVAS_Vuelo_Pasajero");
-
             builder.HasIndex(e => e.IdCliente)
                 .HasDatabaseName("IX_RESERVAS_Cliente");
 
@@ -204,23 +188,11 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("FK_RESERVAS_Cliente");
 
-            builder.HasOne(e => e.Pasajero)
-                .WithMany(p => p.Reservas)
-                .HasForeignKey(e => e.IdPasajero)
-                .OnDelete(DeleteBehavior.Restrict)
-                .HasConstraintName("FK_RESERVAS_Pasajero");
-
             builder.HasOne(e => e.Vuelo)
                 .WithMany(v => v.Reservas)
                 .HasForeignKey(e => e.IdVuelo)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("FK_RESERVAS_Vuelo");
-
-            builder.HasOne(e => e.Asiento)
-                .WithMany(a => a.Reservas)
-                .HasForeignKey(e => e.IdAsiento)
-                .OnDelete(DeleteBehavior.Restrict)
-                .HasConstraintName("FK_RESERVAS_Asiento");
         }
     }
 }

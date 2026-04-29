@@ -2,6 +2,8 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microservicio.Vuelos.Business.DTOs.Boleto;
+using Microservicio.Vuelos.Business.DTOs.Equipaje;
+using Microservicio.Vuelos.Business.DTOs.Factura;
 using Microservicio.Vuelos.Business.DTOs.Reserva;
 using Microservicio.Vuelos.Business.Exceptions;
 using Microservicio.Vuelos.Business.Interfaces;
@@ -14,6 +16,8 @@ namespace Microservicio.Vuelos.Business.Services;
 
 public class ReservaService : IReservaService
 {
+    private static readonly string[] EstadosActivosReserva = ["PEN", "CON", "EMI"];
+
     private readonly IReservaDataService _reservaDataService;
     private readonly IFacturaDataService _facturaDataService;
     private readonly IClienteDataService _clienteDataService;
@@ -21,6 +25,8 @@ public class ReservaService : IReservaService
     private readonly IVueloDataService _vueloDataService;
     private readonly IAsientoDataService _asientoDataService;
     private readonly IBoletoService _boletoService;
+    private readonly IEquipajeService _equipajeService;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ReservaValidator _validator;
 
     public ReservaService(
@@ -30,7 +36,9 @@ public class ReservaService : IReservaService
         IPasajeroDataService pasajeroDataService,
         IVueloDataService vueloDataService,
         IAsientoDataService asientoDataService,
-        IBoletoService boletoService)
+        IBoletoService boletoService,
+        IEquipajeService equipajeService,
+        IUnitOfWork unitOfWork)
     {
         _reservaDataService = reservaDataService;
         _facturaDataService = facturaDataService;
@@ -39,6 +47,8 @@ public class ReservaService : IReservaService
         _vueloDataService = vueloDataService;
         _asientoDataService = asientoDataService;
         _boletoService = boletoService;
+        _equipajeService = equipajeService;
+        _unitOfWork = unitOfWork;
         _validator = new ReservaValidator();
     }
 
@@ -64,15 +74,11 @@ public class ReservaService : IReservaService
             throw new ValidationException("El id de la reserva debe ser mayor que 0.");
 
         var data = await _reservaDataService.GetByIdAsync(idReserva);
+        if (data == null)
+            return null;
 
-        if (data == null) return null;
-
-        // ✅ CLIENTE solo puede ver sus propias reservas
-        if (rolDelToken == "CLIENTE")
-        {
-            if (idClienteDelToken == null || data.IdCliente != idClienteDelToken)
-                throw new UnauthorizedBusinessException("No tienes permiso para ver esta reserva.");
-        }
+        if (rolDelToken == "CLIENTE" && (idClienteDelToken == null || data.IdCliente != idClienteDelToken))
+            throw new UnauthorizedBusinessException("No tienes permiso para ver esta reserva.");
 
         return ReservaBusinessMapper.ToResponseDto(data);
     }
@@ -90,31 +96,42 @@ public class ReservaService : IReservaService
         if (cliente.EsEliminado || cliente.Estado != "ACT")
             throw new BusinessException("El cliente indicado está inactivo o eliminado.");
 
-        var pasajero = await _pasajeroDataService.GetByIdAsync(request.IdPasajero);
-        if (pasajero == null)
-            throw new NotFoundException("El pasajero indicado no existe.");
-        if (pasajero.EsEliminado || pasajero.Estado != "ACTIVO")
-            throw new BusinessException("El pasajero indicado está inactivo o eliminado.");
-        if (pasajero.IdCliente.HasValue && pasajero.IdCliente.Value != request.IdCliente)
-            throw new BusinessException("El pasajero indicado no pertenece al cliente indicado.");
-
         var vuelo = await _vueloDataService.GetByIdAsync(request.IdVuelo);
         if (vuelo == null)
             throw new NotFoundException("El vuelo indicado no existe.");
-        if (vuelo.Estado != "ACTIVO" || vuelo.EstadoVuelo is "CANCELADO" or "ATERRIZADO")
+        if (vuelo.Estado != "ACTIVO" || vuelo.EstadoVuelo is not ("PROGRAMADO" or "DEMORADO"))
             throw new BusinessException("El vuelo no está disponible para nuevas reservas.");
 
-        var asiento = await _asientoDataService.GetByIdAsync(request.IdAsiento);
-        if (asiento == null)
-            throw new NotFoundException("El asiento indicado no existe.");
-        if (asiento.Eliminado || asiento.Estado != "ACTIVO")
-            throw new BusinessException("El asiento indicado está inactivo o eliminado.");
+        var detallesSolicitados = GetDetallesSolicitados(request);
+        if (detallesSolicitados.Count == 0)
+            throw new BusinessException("La reserva debe tener al menos un detalle.");
 
-        if (asiento.IdVuelo != request.IdVuelo)
-            throw new BusinessException("El asiento no pertenece al vuelo indicado.");
+        var detallesConAsientos = new List<(ReservaDetalleRequestDto Detalle, AsientoDataModel Asiento)>();
 
-        if (!asiento.Disponible)
-            throw new BusinessException("El asiento seleccionado no está disponible.");
+        foreach (var detalle in detallesSolicitados)
+        {
+            var pasajero = await _pasajeroDataService.GetByIdAsync(detalle.IdPasajero);
+            if (pasajero == null)
+                throw new NotFoundException($"El pasajero {detalle.IdPasajero} no existe.");
+            if (pasajero.EsEliminado || pasajero.Estado != "ACTIVO")
+                throw new BusinessException($"El pasajero {detalle.IdPasajero} está inactivo o eliminado.");
+            if (pasajero.IdCliente.HasValue && pasajero.IdCliente.Value != request.IdCliente)
+                throw new BusinessException($"El pasajero {detalle.IdPasajero} no pertenece al cliente indicado.");
+
+            var asiento = await _asientoDataService.GetByIdAsync(detalle.IdAsiento);
+            if (asiento == null)
+                throw new NotFoundException($"El asiento {detalle.IdAsiento} no existe.");
+            if (asiento.Eliminado || asiento.Estado != "ACTIVO")
+                throw new BusinessException($"El asiento {detalle.IdAsiento} está inactivo o eliminado.");
+            if (asiento.IdVuelo != request.IdVuelo)
+                throw new BusinessException($"El asiento {detalle.IdAsiento} no pertenece al vuelo indicado.");
+            if (!asiento.Disponible)
+                throw new BusinessException($"El asiento {detalle.IdAsiento} no está disponible.");
+
+            detallesConAsientos.Add((detalle, asiento));
+        }
+
+        EnsureNoDuplicadosEnRequest(detallesSolicitados);
 
         var existentes = await _reservaDataService.GetPagedAsync(new ReservaFiltroDataModel
         {
@@ -123,61 +140,52 @@ public class ReservaService : IReservaService
             PageSize = 10000
         });
 
-        var reservaExactaActiva = existentes.Items.FirstOrDefault(x =>
-            x.IdVuelo == request.IdVuelo &&
-            x.IdAsiento == request.IdAsiento &&
-            x.IdPasajero == request.IdPasajero &&
-            x.EstadoReserva is "PEN" or "CON" or "EMI");
-
-        // Idempotencia para el wizard: si reintenta exactamente la misma reserva activa,
-        // devolvemos la existente en lugar de lanzar conflicto.
-        if (reservaExactaActiva is not null)
+        foreach (var detalle in detallesSolicitados)
         {
-            if (reservaExactaActiva.IdCliente != request.IdCliente)
-                throw new BusinessException("Ya existe una reserva activa para ese pasajero y asiento en este vuelo asociada a otro cliente.");
-
-            var facturasReserva = await _facturaDataService.GetPagedAsync(new FacturaFiltroDataModel
+            if (existentes.Items.Any(x =>
+                    EstadosActivosReserva.Contains(x.EstadoReserva) &&
+                    x.Detalles.Any(d => !d.EsEliminado && d.IdPasajero == detalle.IdPasajero)))
             {
-                IdReserva = reservaExactaActiva.IdReserva,
-                PageNumber = 1,
-                PageSize = 50
-            });
-
-            var facturaActiva = facturasReserva.Items.FirstOrDefault(x => x.Estado != "INA");
-            if (facturaActiva?.Estado?.Trim().ToUpperInvariant() == "APR")
-            {
-                throw new BusinessException("Esta reserva ya fue pagada y cerrada. Para volver a viajar debes iniciar una nueva compra con otro vuelo o pasajero.");
+                throw new BusinessException($"El pasajero {detalle.IdPasajero} ya tiene una reserva activa en este vuelo.");
             }
 
-            return ReservaBusinessMapper.ToResponseDto(reservaExactaActiva);
+            if (existentes.Items.Any(x =>
+                    EstadosActivosReserva.Contains(x.EstadoReserva) &&
+                    x.Detalles.Any(d => !d.EsEliminado && d.IdAsiento == detalle.IdAsiento)))
+            {
+                throw new BusinessException($"El asiento {detalle.IdAsiento} ya fue reservado en este vuelo.");
+            }
         }
 
-        if (existentes.Items.Any(x =>
-                x.IdVuelo == request.IdVuelo &&
-                x.IdPasajero == request.IdPasajero &&
-                x.EstadoReserva is "PEN" or "CON" or "EMI"))
-        {
-            throw new BusinessException("Este pasajero ya tiene una reserva activa en este vuelo. Elige otro pasajero o cambia de vuelo.");
-        }
+        var detallesActivosExistentes = existentes.Items
+            .Where(x => EstadosActivosReserva.Contains(x.EstadoReserva))
+            .Sum(x => x.Detalles.Count(d => !d.EsEliminado));
 
-        if (existentes.Items.Any(x =>
-                x.IdVuelo == request.IdVuelo &&
-                x.IdAsiento == request.IdAsiento &&
-                x.EstadoReserva is "PEN" or "CON" or "EMI"))
-        {
-            throw new BusinessException("El asiento seleccionado ya fue reservado en este vuelo. Elige otro asiento disponible.");
-        }
-
-        var reservasActivas = existentes.Items.Count(x =>
-            x.IdVuelo == request.IdVuelo &&
-            x.EstadoReserva is "PEN" or "CON" or "EMI");
-
-        if (reservasActivas >= vuelo.CapacidadTotal)
-            throw new BusinessException("El vuelo ya alcanzó su capacidad máxima de reservas.");
+        if (detallesActivosExistentes + detallesSolicitados.Count > vuelo.CapacidadTotal)
+            throw new BusinessException("El vuelo no tiene capacidad suficiente para la cantidad de pasajeros solicitada.");
 
         var dataModel = ReservaBusinessMapper.ToDataModel(request, creadoPorUsuario);
-        var creada = await _reservaDataService.CreateAsync(dataModel);
+        dataModel.FechaInicio = vuelo.FechaHoraSalida;
+        dataModel.FechaFin = vuelo.FechaHoraLlegada;
 
+        if (dataModel.Detalles.Count == 0)
+        {
+            dataModel.Detalles = detallesConAsientos
+                .Select(x => new ReservaDetalleDataModel
+                {
+                    IdPasajero = x.Detalle.IdPasajero,
+                    IdAsiento = x.Detalle.IdAsiento,
+                    SubtotalLinea = x.Detalle.SubtotalLinea,
+                    ValorIvaLinea = x.Detalle.ValorIvaLinea,
+                    TotalLinea = x.Detalle.TotalLinea,
+                    Estado = "ACTIVO",
+                    EsEliminado = false,
+                    CreadoPorUsuario = creadoPorUsuario
+                })
+                .ToList();
+        }
+
+        var creada = await _reservaDataService.CreateAsync(dataModel);
         return ReservaBusinessMapper.ToResponseDto(creada);
     }
 
@@ -200,40 +208,28 @@ public class ReservaService : IReservaService
         if (actual == null)
             throw new NotFoundException("Reserva no encontrada.");
 
+        var estadoNuevo = request.EstadoReserva.Trim().ToUpperInvariant();
+
         if (rolDelToken == "CLIENTE")
         {
             if (idClienteDelToken == null || actual.IdCliente != idClienteDelToken)
-                throw new UnauthorizedBusinessException("No tienes permiso para modificar el estado de esta reserva.");
+                throw new UnauthorizedBusinessException("No tienes permiso para modificar esta reserva.");
 
-            var estadoNuevoCliente = request.EstadoReserva.Trim().ToUpperInvariant();
-            if (estadoNuevoCliente is not ("CON" or "CAN"))
-                throw new BusinessException("Como cliente solo puedes confirmar (CON) o cancelar (CAN) tu reserva.");
+            if (estadoNuevo != "CAN")
+                throw new BusinessException("Como cliente solo puedes cancelar tu propia reserva mediante este endpoint.");
         }
 
         var estadoActual = actual.EstadoReserva.Trim().ToUpperInvariant();
-        var estadoNuevo = request.EstadoReserva.Trim().ToUpperInvariant();
-
-        // Idempotencia: si reintentan el mismo estado, devolvemos la reserva actual
-        // y en caso de CON para CLIENTE aseguramos factura/boleto para continuar el wizard.
         if (estadoActual == estadoNuevo)
-        {
-            if (estadoNuevo == "CON" && rolDelToken == "CLIENTE")
-            {
-                var factura = await EnsureFacturaGeneradaParaReservaAsync(actual, modificadoPorUsuario);
-                await EnsureBoletoGeneradoParaReservaClienteAsync(actual, factura, modificadoPorUsuario);
-            }
-
             return ReservaBusinessMapper.ToResponseDto(actual);
-        }
 
         var transicionesPermitidas = new Dictionary<string, string[]>
         {
-            { "PEN", new[] { "CON", "CAN", "EXP" } },
-            { "CON", new[] { "EMI", "CAN", "FIN" } },
-            { "EMI", new[] { "FIN", "CAN" } },
-            { "CAN", Array.Empty<string>() },
-            { "EXP", Array.Empty<string>() },
-            { "FIN", Array.Empty<string>() }
+            { "PEN", ["CON", "CAN"] },
+            { "CON", ["CAN", "EMI", "FIN"] },
+            { "EMI", ["FIN"] },
+            { "CAN", [] },
+            { "FIN", [] }
         };
 
         if (!transicionesPermitidas.TryGetValue(estadoActual, out var permitidos))
@@ -246,9 +242,6 @@ public class ReservaService : IReservaService
         if (vuelo == null)
             throw new NotFoundException("El vuelo asociado a la reserva no existe.");
 
-        if (estadoNuevo == "CON" && vuelo.EstadoVuelo is not ("PROGRAMADO" or "DEMORADO"))
-            throw new BusinessException("Solo se puede confirmar una reserva si el vuelo está PROGRAMADO o DEMORADO.");
-
         if (estadoNuevo == "FIN" && vuelo.EstadoVuelo != "ATERRIZADO")
             throw new BusinessException("No se puede finalizar la reserva porque el vuelo aún no ha aterrizado.");
 
@@ -260,89 +253,194 @@ public class ReservaService : IReservaService
         actual.FechaConfirmacionUtc = estadoNuevo == "CON" ? DateTime.UtcNow : actual.FechaConfirmacionUtc;
 
         var actualizado = await _reservaDataService.UpdateAsync(actual);
-        if (actualizado != null && estadoNuevo == "CON")
-        {
-            var factura = await EnsureFacturaGeneradaParaReservaAsync(actualizado, modificadoPorUsuario);
-
-            // Solo para CLIENTE: autoemitir boleto para habilitar equipaje en wizard antes del pago.
-            if (rolDelToken == "CLIENTE")
-                await EnsureBoletoGeneradoParaReservaClienteAsync(actualizado, factura, modificadoPorUsuario);
-        }
-
         return actualizado == null ? null : ReservaBusinessMapper.ToResponseDto(actualizado);
     }
 
-    private async Task<FacturaDataModel> EnsureFacturaGeneradaParaReservaAsync(ReservaDataModel reservaConfirmada, string usuario)
+    public async Task<ReservaPagarResponseDto?> PagarAsync(
+        int idReserva,
+        ReservaPagarRequestDto request,
+        string modificadoPorUsuario,
+        int? idClienteDelToken,
+        string rolDelToken)
     {
-        var existentes = await _facturaDataService.GetPagedAsync(new FacturaFiltroDataModel
-        {
-            IdReserva = reservaConfirmada.IdReserva,
-            PageNumber = 1,
-            PageSize = 10000
-        });
+        if (idReserva <= 0)
+            throw new ValidationException("El id de la reserva debe ser mayor que 0.");
 
-        var facturaActiva = existentes.Items.FirstOrDefault(x => x.IdReserva == reservaConfirmada.IdReserva && x.Estado != "INA");
-        if (facturaActiva != null)
-            return facturaActiva;
+        if (string.IsNullOrWhiteSpace(modificadoPorUsuario))
+            throw new UnauthorizedBusinessException("No se pudo identificar el usuario que ejecuta el pago.");
 
-        var factura = new FacturaDataModel
-        {
-            IdCliente = reservaConfirmada.IdCliente,
-            IdReserva = reservaConfirmada.IdReserva,
-            Subtotal = reservaConfirmada.SubtotalReserva,
-            ValorIva = reservaConfirmada.ValorIva,
-            CargoServicio = 0m,
-            Total = reservaConfirmada.TotalReserva,
-            ObservacionesFactura = $"Factura generada automáticamente al confirmar reserva {reservaConfirmada.CodigoReserva}.",
-            Estado = "ABI",
-            EsEliminado = false,
-            CreadoPorUsuario = usuario,
-            ServicioOrigen = "VUELOS"
-        };
+        request ??= new ReservaPagarRequestDto();
 
-        return await _facturaDataService.CreateAsync(factura);
-    }
+        if (request.CargoServicio < 0)
+            throw new ValidationException("El cargo de servicio no puede ser negativo.");
 
-    private async Task EnsureBoletoGeneradoParaReservaClienteAsync(
-        ReservaDataModel reservaConfirmada,
-        FacturaDataModel factura,
-        string usuario)
-    {
-        var vuelo = await _vueloDataService.GetByIdAsync(reservaConfirmada.IdVuelo);
+        if (request.Equipaje.Any(x => x.IdDetalle <= 0))
+            throw new ValidationException("Cada equipaje debe indicar un id_detalle válido.");
+
+        var reserva = await _reservaDataService.GetByIdAsync(idReserva);
+        if (reserva == null)
+            throw new NotFoundException("Reserva no encontrada.");
+
+        if (rolDelToken == "CLIENTE" && (idClienteDelToken == null || reserva.IdCliente != idClienteDelToken))
+            throw new UnauthorizedBusinessException("No tienes permiso para pagar esta reserva.");
+
+        var estadoReserva = reserva.EstadoReserva.Trim().ToUpperInvariant();
+        if (estadoReserva == "CAN" || estadoReserva == "FIN")
+            throw new BusinessException("La reserva no puede pagarse en su estado actual.");
+        if (estadoReserva == "EMI")
+            throw new BusinessException("La reserva ya fue pagada y emitida.");
+
+        if (reserva.Detalles.Count == 0)
+            throw new BusinessException("La reserva no tiene detalles para procesar el pago.");
+
+        var vuelo = await _vueloDataService.GetByIdAsync(reserva.IdVuelo);
         if (vuelo == null)
-            throw new NotFoundException("No se pudo autoemitir boleto porque el vuelo asociado no existe.");
+            throw new NotFoundException("El vuelo asociado a la reserva no existe.");
+        if (vuelo.Estado != "ACTIVO" || vuelo.EstadoVuelo is not ("PROGRAMADO" or "DEMORADO"))
+            throw new BusinessException("Solo se puede pagar una reserva en un vuelo disponible.");
 
-        var asiento = await _asientoDataService.GetByIdAsync(reservaConfirmada.IdAsiento);
-        if (asiento == null)
-            throw new NotFoundException("No se pudo autoemitir boleto porque el asiento asociado no existe.");
-
-        var precioVueloBase = Math.Round(vuelo.PrecioBase, 2, MidpointRounding.AwayFromZero);
-        var precioAsientoExtra = Math.Round(asiento.PrecioExtra, 2, MidpointRounding.AwayFromZero);
-        var impuestos = Math.Round(reservaConfirmada.ValorIva, 2, MidpointRounding.AwayFromZero);
-        var precioFinal = Math.Round(precioVueloBase + precioAsientoExtra + impuestos, 2, MidpointRounding.AwayFromZero);
-
-        var request = new BoletoRequestDto
+        return await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            IdReserva = reservaConfirmada.IdReserva,
-            IdVuelo = reservaConfirmada.IdVuelo,
-            IdAsiento = reservaConfirmada.IdAsiento,
-            IdFactura = factura.IdFactura,
-            Clase = asiento.Clase,
-            PrecioVueloBase = precioVueloBase,
-            PrecioAsientoExtra = precioAsientoExtra,
-            ImpuestosBoleto = impuestos,
-            CargoEquipaje = 0m,
-            PrecioFinal = precioFinal
-        };
+            var factura = await EnsureFacturaParaPagoAsync(reserva, request.CargoServicio, modificadoPorUsuario);
 
-        try
-        {
-            await _boletoService.CreateAsync(request, usuario);
-        }
-        catch (BusinessException ex) when (ex.Message.Contains("Ya existe un boleto", StringComparison.OrdinalIgnoreCase))
-        {
-            // Idempotencia: si ya existe boleto para la reserva, no interrumpimos el flujo.
-        }
+            if (reserva.EstadoReserva != "CON")
+            {
+                reserva.EstadoReserva = "CON";
+                reserva.FechaConfirmacionUtc ??= DateTime.UtcNow;
+                reserva.ModificadoPorUsuario = modificadoPorUsuario;
+                reserva.FechaModificacionUtc = DateTime.UtcNow;
+
+                var reservaConfirmada = await _reservaDataService.UpdateAsync(reserva);
+                if (reservaConfirmada == null)
+                    throw new BusinessException("No se pudo confirmar la reserva antes de emitir los boletos.");
+
+                reserva = reservaConfirmada;
+            }
+
+            var boletosActuales = await _boletoService.GetPagedAsync(new BoletoFilterDto
+            {
+                IdReserva = reserva.IdReserva,
+                Page = 1,
+                PageSize = 200
+            });
+
+            foreach (var detalle in reserva.Detalles.Where(d => !d.EsEliminado))
+            {
+                var asiento = await _asientoDataService.GetByIdAsync(detalle.IdAsiento);
+                if (asiento == null)
+                    throw new NotFoundException($"El asiento {detalle.IdAsiento} no existe.");
+                if (asiento.IdVuelo != reserva.IdVuelo)
+                    throw new BusinessException($"El asiento {detalle.IdAsiento} no pertenece al vuelo de la reserva.");
+
+                var boletoExistente = boletosActuales.Items.FirstOrDefault(x => x.IdDetalle == detalle.IdDetalle);
+                if (boletoExistente != null)
+                    continue;
+
+                if (!asiento.Disponible)
+                    throw new BusinessException($"El asiento {detalle.IdAsiento} ya no está disponible para completar el pago.");
+
+                asiento.Disponible = false;
+                asiento.ModificadoPorUsuario = modificadoPorUsuario;
+                asiento.FechaModificacionUtc = DateTime.UtcNow;
+                await _asientoDataService.UpdateAsync(asiento);
+
+                await _boletoService.CreateAsync(new BoletoRequestDto
+                {
+                    IdReserva = reserva.IdReserva,
+                    IdDetalle = detalle.IdDetalle,
+                    IdVuelo = reserva.IdVuelo,
+                    IdAsiento = detalle.IdAsiento,
+                    IdFactura = factura.IdFactura,
+                    Clase = asiento.Clase,
+                    PrecioVueloBase = Math.Round(vuelo.PrecioBase, 2, MidpointRounding.AwayFromZero),
+                    PrecioAsientoExtra = Math.Round(asiento.PrecioExtra, 2, MidpointRounding.AwayFromZero),
+                    ImpuestosBoleto = Math.Round(detalle.ValorIvaLinea, 2, MidpointRounding.AwayFromZero),
+                    CargoEquipaje = 0m,
+                    PrecioFinal = Math.Round(
+                        vuelo.PrecioBase +
+                        asiento.PrecioExtra +
+                        detalle.ValorIvaLinea,
+                        2,
+                        MidpointRounding.AwayFromZero)
+                }, modificadoPorUsuario);
+            }
+
+            var boletosFinales = await _boletoService.GetPagedAsync(new BoletoFilterDto
+            {
+                IdReserva = reserva.IdReserva,
+                Page = 1,
+                PageSize = 200
+            });
+
+            var equipajesCreados = new List<EquipajeResponseDto>();
+            foreach (var equipaje in request.Equipaje)
+            {
+                if (!reserva.Detalles.Any(d => !d.EsEliminado && d.IdDetalle == equipaje.IdDetalle))
+                    throw new BusinessException($"El detalle {equipaje.IdDetalle} no pertenece a la reserva.");
+
+                var boleto = boletosFinales.Items.FirstOrDefault(x => x.IdDetalle == equipaje.IdDetalle);
+                if (boleto == null)
+                    throw new BusinessException($"No se encontró boleto emitido para el detalle {equipaje.IdDetalle}.");
+
+                var creado = await _equipajeService.CreateAsync(new EquipajeRequestDto
+                {
+                    IdBoleto = boleto.IdBoleto,
+                    Tipo = equipaje.Tipo,
+                    PesoKg = equipaje.PesoKg,
+                    DescripcionEquipaje = equipaje.DescripcionEquipaje,
+                    PrecioExtra = 0m
+                }, modificadoPorUsuario, idClienteDelToken, rolDelToken);
+
+                equipajesCreados.Add(creado);
+            }
+
+            factura = await RecalcularFacturaDesdeBoletosAsync(
+                factura,
+                reserva.IdReserva,
+                modificadoPorUsuario);
+
+            reserva.EstadoReserva = "EMI";
+            reserva.ModificadoPorUsuario = modificadoPorUsuario;
+            reserva.FechaModificacionUtc = DateTime.UtcNow;
+
+            var actualizada = await _reservaDataService.UpdateAsync(reserva);
+            if (actualizada == null)
+                return null;
+
+            var boletosRespuesta = await _boletoService.GetPagedAsync(new BoletoFilterDto
+            {
+                IdReserva = reserva.IdReserva,
+                Page = 1,
+                PageSize = 200
+            });
+
+            return new ReservaPagarResponseDto
+            {
+                Reserva = new ReservaPagoReservaResumenDto
+                {
+                    IdReserva = actualizada.IdReserva,
+                    CodigoReserva = actualizada.CodigoReserva,
+                    EstadoReserva = actualizada.EstadoReserva
+                },
+                Factura = new FacturaResponseDto
+                {
+                    IdFactura = factura.IdFactura,
+                    GuidFactura = factura.GuidFactura,
+                    NumeroFactura = factura.NumeroFactura,
+                    IdCliente = factura.IdCliente,
+                    IdReserva = factura.IdReserva,
+                    FechaEmision = factura.FechaEmision,
+                    Subtotal = factura.Subtotal,
+                    ValorIva = factura.ValorIva,
+                    CargoServicio = factura.CargoServicio,
+                    Total = factura.Total,
+                    ObservacionesFactura = factura.ObservacionesFactura,
+                    Estado = factura.Estado
+                },
+                Boletos = boletosRespuesta.Items.ToList(),
+                Equipajes = equipajesCreados
+            };
+        });
     }
 
     public async Task<bool> DeleteAsync(int idReserva, string modificadoPorUsuario)
@@ -358,5 +456,118 @@ public class ReservaService : IReservaService
             throw new NotFoundException("Reserva no encontrada.");
 
         return await _reservaDataService.DeleteAsync(idReserva, modificadoPorUsuario);
+    }
+
+    private static List<ReservaDetalleRequestDto> GetDetallesSolicitados(ReservaRequestDto request)
+    {
+        if (request.Detalles.Count > 0)
+            return request.Detalles;
+
+        var detalleCompatibilidad = new ReservaDetalleRequestDto
+        {
+            IdPasajero = request.IdPasajero,
+            IdAsiento = request.IdAsiento,
+            SubtotalLinea = request.SubtotalReserva,
+            ValorIvaLinea = request.ValorIva,
+            TotalLinea = request.TotalReserva
+        };
+
+        return detalleCompatibilidad.IdPasajero > 0 && detalleCompatibilidad.IdAsiento > 0
+            ? [detalleCompatibilidad]
+            : [];
+    }
+
+    private static void EnsureNoDuplicadosEnRequest(List<ReservaDetalleRequestDto> detalles)
+    {
+        if (detalles.GroupBy(x => x.IdPasajero).Any(g => g.Key > 0 && g.Count() > 1))
+            throw new BusinessException("No se puede repetir el mismo pasajero dentro de la reserva.");
+
+        if (detalles.GroupBy(x => x.IdAsiento).Any(g => g.Key > 0 && g.Count() > 1))
+            throw new BusinessException("No se puede repetir el mismo asiento dentro de la reserva.");
+    }
+
+    private async Task<FacturaDataModel> EnsureFacturaParaPagoAsync(ReservaDataModel reserva, decimal cargoServicio, string usuario)
+    {
+        var existentes = await _facturaDataService.GetPagedAsync(new FacturaFiltroDataModel
+        {
+            IdReserva = reserva.IdReserva,
+            PageNumber = 1,
+            PageSize = 100
+        });
+
+        var factura = existentes.Items.FirstOrDefault(x => x.IdReserva == reserva.IdReserva && x.Estado != "INA");
+        if (factura == null)
+        {
+            factura = await _facturaDataService.CreateAsync(new FacturaDataModel
+            {
+                IdCliente = reserva.IdCliente,
+                IdReserva = reserva.IdReserva,
+                Subtotal = reserva.SubtotalReserva,
+                ValorIva = reserva.ValorIva,
+                CargoServicio = Math.Round(cargoServicio, 2, MidpointRounding.AwayFromZero),
+                Total = Math.Round(reserva.TotalReserva + cargoServicio, 2, MidpointRounding.AwayFromZero),
+                ObservacionesFactura = $"Factura generada al pagar la reserva {reserva.CodigoReserva}.",
+                OrigenCanalFactura = reserva.OrigenCanalReserva,
+                CreadoPorUsuario = usuario,
+                ServicioOrigen = "VUELOS"
+            });
+        }
+        else
+        {
+            factura.CargoServicio = Math.Round(cargoServicio, 2, MidpointRounding.AwayFromZero);
+            factura.Total = Math.Round(reserva.TotalReserva + cargoServicio, 2, MidpointRounding.AwayFromZero);
+            factura.ModificadoPorUsuario = usuario;
+            factura.FechaModificacionUtc = DateTime.UtcNow;
+        }
+
+        if (factura.Estado != "APR")
+        {
+            factura.Estado = "APR";
+            factura.ModificadoPorUsuario = usuario;
+            factura.FechaModificacionUtc = DateTime.UtcNow;
+        }
+
+        var actualizada = await _facturaDataService.UpdateAsync(factura);
+        if (actualizada == null)
+            throw new BusinessException("No se pudo actualizar la factura de la reserva.");
+
+        factura = actualizada;
+
+        return factura;
+    }
+
+    private async Task<FacturaDataModel> RecalcularFacturaDesdeBoletosAsync(
+        FacturaDataModel factura,
+        int idReserva,
+        string usuario)
+    {
+        var boletos = await _boletoService.GetPagedAsync(new BoletoFilterDto
+        {
+            IdReserva = idReserva,
+            Page = 1,
+            PageSize = 200
+        });
+
+        var subtotal = boletos.Items.Sum(x =>
+            x.PrecioVueloBase +
+            x.PrecioAsientoExtra +
+            x.CargoEquipaje);
+
+        var valorIva = boletos.Items.Sum(x => x.ImpuestosBoleto);
+
+        factura.Subtotal = Math.Round(subtotal, 2, MidpointRounding.AwayFromZero);
+        factura.ValorIva = Math.Round(valorIva, 2, MidpointRounding.AwayFromZero);
+        factura.Total = Math.Round(
+            factura.Subtotal + factura.ValorIva + factura.CargoServicio,
+            2,
+            MidpointRounding.AwayFromZero);
+        factura.ModificadoPorUsuario = usuario;
+        factura.FechaModificacionUtc = DateTime.UtcNow;
+
+        var actualizada = await _facturaDataService.UpdateAsync(factura);
+        if (actualizada == null)
+            throw new BusinessException("No se pudo recalcular la factura de la reserva.");
+
+        return actualizada;
     }
 }

@@ -1,18 +1,27 @@
+using Microsoft.AspNetCore.Mvc;
+
 namespace Microservicio.Vuelos.Business.DTOs.Reserva;
 
 public class ReservaFilterDto
 {
+    [FromQuery(Name = "codigo_reserva")]
     public string? CodigoReserva { get; set; }
 
+    [FromQuery(Name = "id_cliente")]
     public int? IdCliente { get; set; }
 
+    [FromQuery(Name = "id_pasajero")]
     public int? IdPasajero { get; set; }
 
+    [FromQuery(Name = "id_vuelo")]
     public int? IdVuelo { get; set; }
 
-    public string? EstadoReserva { get; set; } // PEN / CON / CAN / EXP / FIN / EMI
+    [FromQuery(Name = "estado_reserva")]
+    public string? EstadoReserva { get; set; }
 
+    [FromQuery(Name = "page")]
     public int Page { get; set; } = 1;
 
+    [FromQuery(Name = "page_size")]
     public int PageSize { get; set; } = 20;
 }

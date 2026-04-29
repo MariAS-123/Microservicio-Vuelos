@@ -16,13 +16,13 @@ public class AuthValidator
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(request.Usuario))
+        if (string.IsNullOrWhiteSpace(request.Username))
         {
-            errors.Add("El usuario es obligatorio.");
+            errors.Add("El username es obligatorio.");
         }
-        else if (request.Usuario.Length > 50)
+        else if (request.Username.Length > 50)
         {
-            errors.Add("El usuario no puede exceder 50 caracteres.");
+            errors.Add("El username no puede exceder 50 caracteres.");
         }
 
         if (string.IsNullOrWhiteSpace(request.Password))

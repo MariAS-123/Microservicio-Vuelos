@@ -23,6 +23,7 @@ public class VueloAdminController : ControllerBase
 
     // GET PAGINADO � Todos los roles autenticados
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
@@ -30,16 +31,14 @@ public class VueloAdminController : ControllerBase
     {
         NormalizeFilter(filter);
 
-        var rol = GetRol();
-        var result = rol == "CLIENTE"
-            ? await _vueloService.GetPagedBookingAsync(filter)
-            : await _vueloService.GetPagedAsync(filter);
+        var result = await _vueloService.GetPagedAsync(filter);
 
         return Ok(ApiResponse<object>.Ok(result, "Consulta de vuelos realizada correctamente."));
     }
 
     // GET BY ID � Todos los roles autenticados
     [HttpGet("{id_vuelo:int}")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<VueloResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
@@ -136,9 +135,6 @@ public class VueloAdminController : ControllerBase
 
         return "SYSTEM";
     }
-
-    private string GetRol() =>
-        User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
 
     private static void NormalizeFilter(VueloFilterDto filter)
     {

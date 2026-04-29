@@ -26,6 +26,9 @@ public class BoletoValidator
         if (dto.IdReserva <= 0)
             errors.Add("La reserva es obligatoria.");
 
+        if (dto.IdDetalle <= 0)
+            errors.Add("El detalle de reserva es obligatorio.");
+
         if (dto.IdVuelo <= 0)
             errors.Add("El vuelo es obligatorio.");
 

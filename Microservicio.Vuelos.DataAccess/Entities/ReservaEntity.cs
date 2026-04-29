@@ -13,11 +13,7 @@ namespace Microservicio.Vuelos.DataAccess.Entities
 
         public int IdCliente { get; set; }
 
-        public int IdPasajero { get; set; }
-
         public int IdVuelo { get; set; }
-
-        public int IdAsiento { get; set; }
 
         public DateTime FechaReservaUtc { get; set; }
 
@@ -70,14 +66,12 @@ namespace Microservicio.Vuelos.DataAccess.Entities
         // Navigation properties
         public virtual ClienteEntity Cliente { get; set; } = null!;
 
-        public virtual PasajeroEntity Pasajero { get; set; } = null!;
-
         public virtual VueloEntity Vuelo { get; set; } = null!;
-
-        public virtual AsientoEntity Asiento { get; set; } = null!;
 
         public virtual ICollection<FacturaEntity> Facturas { get; set; } = new HashSet<FacturaEntity>();
 
         public virtual ICollection<BoletoEntity> Boletos { get; set; } = new HashSet<BoletoEntity>();
+
+        public virtual ICollection<ReservaDetalleEntity> Detalles { get; set; } = new HashSet<ReservaDetalleEntity>();
     }
 }

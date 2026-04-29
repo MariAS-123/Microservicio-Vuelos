@@ -10,10 +10,12 @@ public class ReservaResponseDto
 
     public int IdCliente { get; set; }
 
+    // Campo puente temporal.
     public int IdPasajero { get; set; }
 
     public int IdVuelo { get; set; }
 
+    // Campo puente temporal.
     public int IdAsiento { get; set; }
 
     public DateTime FechaReservaUtc { get; set; }
@@ -43,4 +45,6 @@ public class ReservaResponseDto
     public string? ContactoTelefono { get; set; }
 
     public string? Observaciones { get; set; }
+
+    public List<ReservaDetalleResponseDto> Detalles { get; set; } = new();
 }

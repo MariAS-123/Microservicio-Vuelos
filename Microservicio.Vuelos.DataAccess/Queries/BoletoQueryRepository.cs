@@ -44,7 +44,7 @@ namespace Microservicio.Vuelos.DataAccess.Queries
                 {
                     IdBoleto = b.IdBoleto,
                     CodigoBoleto = b.CodigoBoleto,
-                    Pasajero = b.Reserva.Pasajero.NombrePasajero + " " + b.Reserva.Pasajero.ApellidoPasajero,
+                    Pasajero = b.Detalle.Pasajero.NombrePasajero + " " + b.Detalle.Pasajero.ApellidoPasajero,
                     NumeroVuelo = b.Vuelo.NumeroVuelo,
                     Asiento = b.Asiento.NumeroAsiento,
                     FechaSalida = b.Vuelo.FechaHoraSalida,
@@ -74,7 +74,7 @@ namespace Microservicio.Vuelos.DataAccess.Queries
                 {
                     IdBoleto = b.IdBoleto,
                     CodigoBoleto = b.CodigoBoleto,
-                    Pasajero = b.Reserva.Pasajero.NombrePasajero + " " + b.Reserva.Pasajero.ApellidoPasajero,
+                    Pasajero = b.Detalle.Pasajero.NombrePasajero + " " + b.Detalle.Pasajero.ApellidoPasajero,
                     NumeroVuelo = b.Vuelo.NumeroVuelo,
                     Asiento = b.Asiento.NumeroAsiento,
                     FechaSalida = b.Vuelo.FechaHoraSalida,
@@ -111,8 +111,8 @@ namespace Microservicio.Vuelos.DataAccess.Queries
                 .OrderBy(b => b.Asiento.NumeroAsiento)
                 .Select(b => new ManifiestoPasajeroDto
                 {
-                    Pasajero = b.Reserva.Pasajero.NombrePasajero + " " + b.Reserva.Pasajero.ApellidoPasajero,
-                    Documento = b.Reserva.Pasajero.TipoDocumentoPasajero + " " + b.Reserva.Pasajero.NumeroDocumentoPasajero,
+                    Pasajero = b.Detalle.Pasajero.NombrePasajero + " " + b.Detalle.Pasajero.ApellidoPasajero,
+                    Documento = b.Detalle.Pasajero.TipoDocumentoPasajero + " " + b.Detalle.Pasajero.NumeroDocumentoPasajero,
                     Asiento = b.Asiento.NumeroAsiento,
                     CodigoBoleto = b.CodigoBoleto
                 })

@@ -48,7 +48,7 @@ public class AsientoController : ControllerBase
 
             var asientosReservadosActivos = reservasVuelo.Items
                 .Where(r => r.EstadoReserva is "PEN" or "CON" or "EMI")
-                .Select(r => r.IdAsiento)
+                .SelectMany(r => r.Detalles.Where(d => !d.EsEliminado).Select(d => d.IdAsiento))
                 .ToHashSet();
 
             var itemsFiltrados = result.Items
@@ -80,7 +80,6 @@ public class AsientoController : ControllerBase
 
         return Ok(ApiResponse<AsientoResponseDto>.Ok(result));
     }
-
     private string GetRol() =>
         User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
 }

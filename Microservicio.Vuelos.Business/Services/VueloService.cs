@@ -15,10 +15,20 @@ namespace Microservicio.Vuelos.Business.Services;
 
 public class VueloService : IVueloService
 {
+    private const int FilasCabinaEstandar = 28;
+    private static readonly char[] ColumnasCabinaEstandar = ['A', 'B', 'C', 'D', 'E', 'F'];
+    private const int CapacidadCabinaEstandar = FilasCabinaEstandar * 6;
+    private const int UltimaFilaPrimeraClase = 4;
+    private const int UltimaFilaEjecutiva = 10;
+    private const decimal PrecioExtraPrimeraClase = 80m;
+    private const decimal PrecioExtraEjecutiva = 40m;
+    private const decimal PrecioExtraEconomica = 0m;
+
     private readonly IVueloDataService _vueloDataService;
     private readonly IReservaDataService _reservaDataService;
     private readonly IAsientoDataService _asientoDataService;
     private readonly IAeropuertoDataService _aeropuertoDataService;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly VueloValidator _validator;
     private readonly bool _validarHoraSalidaAntesDeEnVuelo;
 
@@ -27,12 +37,14 @@ public class VueloService : IVueloService
         IReservaDataService reservaDataService,
         IAsientoDataService asientoDataService,
         IAeropuertoDataService aeropuertoDataService,
+        IUnitOfWork unitOfWork,
         IConfiguration configuration)
     {
         _vueloDataService = vueloDataService;
         _reservaDataService = reservaDataService;
         _asientoDataService = asientoDataService;
         _aeropuertoDataService = aeropuertoDataService;
+        _unitOfWork = unitOfWork;
         _validator = new VueloValidator();
         _validarHoraSalidaAntesDeEnVuelo = configuration.GetValue(
             "BusinessRules:Vuelo:ValidarHoraSalidaAntesDeEnVuelo",
@@ -70,6 +82,7 @@ public class VueloService : IVueloService
         if (string.IsNullOrWhiteSpace(creadoPorUsuario))
             throw new UnauthorizedBusinessException("No se pudo identificar el usuario creador.");
 
+        request.CapacidadTotal = CapacidadCabinaEstandar;
         request.FechaHoraLlegada = request.FechaHoraSalida.AddMinutes(request.DuracionMin);
         _validator.ValidateRequest(request);
 
@@ -87,11 +100,17 @@ public class VueloService : IVueloService
 
         var numeroVueloGenerado = await GenerarNumeroVueloAsync();
 
-        var dataModel = VueloBusinessMapper.ToDataModel(request, creadoPorUsuario);
-        dataModel.NumeroVuelo = numeroVueloGenerado;
-        var creado = await _vueloDataService.CreateAsync(dataModel);
+        return await _unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            var dataModel = VueloBusinessMapper.ToDataModel(request, creadoPorUsuario);
+            dataModel.NumeroVuelo = numeroVueloGenerado;
+            dataModel.CapacidadTotal = CapacidadCabinaEstandar;
 
-        return VueloBusinessMapper.ToResponseDto(creado);
+            var creado = await _vueloDataService.CreateAsync(dataModel);
+            await EnsureSeatMapAsync(creado.IdVuelo, creadoPorUsuario);
+
+            return VueloBusinessMapper.ToResponseDto(creado);
+        });
     }
 
     public async Task<VueloResponseDto?> UpdateAsync(int idVuelo, VueloUpdateRequestDto request, string modificadoPorUsuario)
@@ -102,6 +121,7 @@ public class VueloService : IVueloService
         if (string.IsNullOrWhiteSpace(modificadoPorUsuario))
             throw new UnauthorizedBusinessException("No se pudo identificar el usuario modificador.");
 
+        request.CapacidadTotal = CapacidadCabinaEstandar;
         request.FechaHoraLlegada = request.FechaHoraSalida.AddMinutes(request.DuracionMin);
         _validator.ValidateUpdate(request);
 
@@ -155,8 +175,11 @@ public class VueloService : IVueloService
 
         var dataModel = VueloBusinessMapper.ToDataModel(idVuelo, request);
         dataModel.ModificadoPorUsuario = modificadoPorUsuario;
+        dataModel.CapacidadTotal = CapacidadCabinaEstandar;
 
         var actualizado = await _vueloDataService.UpdateAsync(dataModel);
+        if (actualizado != null)
+            await EnsureSeatMapAsync(actualizado.IdVuelo, modificadoPorUsuario);
 
         return actualizado == null ? null : VueloBusinessMapper.ToResponseDto(actualizado);
     }
@@ -272,10 +295,6 @@ public class VueloService : IVueloService
                     r.EstadoReserva is "PEN" or "CON" or "EMI")
                 .ToList();
 
-            var conteoReservasActivasPorVuelo = reservasActivas
-                .GroupBy(r => r.IdVuelo)
-                .ToDictionary(g => g.Key, g => g.Count());
-
             var asientosDisponibles = await _asientoDataService.GetPagedAsync(new AsientoFiltroDataModel
             {
                 Disponible = true,
@@ -285,7 +304,7 @@ public class VueloService : IVueloService
             });
 
             var asientosReservadosActivos = reservasActivas
-                .Select(r => r.IdAsiento)
+                .SelectMany(r => r.Detalles.Where(d => !d.EsEliminado).Select(d => d.IdAsiento))
                 .ToHashSet();
 
             var asientosRealmenteDisponiblesPorVuelo = asientosDisponibles.Items
@@ -299,10 +318,8 @@ public class VueloService : IVueloService
             vuelosFiltrados = vuelosFiltrados
                 .Where(v =>
                 {
-                    var reservadas = conteoReservasActivasPorVuelo.GetValueOrDefault(v.IdVuelo, 0);
-                    var hayCapacidad = reservadas < v.CapacidadTotal;
                     var asientosDisponibles = asientosRealmenteDisponiblesPorVuelo.GetValueOrDefault(v.IdVuelo, 0);
-                    return hayCapacidad && asientosDisponibles > 0;
+                    return asientosDisponibles > 0;
                 })
                 .ToList();
         }
@@ -348,5 +365,57 @@ public class VueloService : IVueloService
         }
 
         return $"AV{(correlativoMaximo + 1):D4}";
+    }
+
+    private async Task EnsureSeatMapAsync(int idVuelo, string usuario)
+    {
+        var existentes = await _asientoDataService.GetByVueloAsync(idVuelo);
+        var numerosExistentes = existentes
+            .Where(x => !x.Eliminado)
+            .Select(x => x.NumeroAsiento.Trim().ToUpperInvariant())
+            .ToHashSet();
+
+        foreach (var fila in Enumerable.Range(1, FilasCabinaEstandar))
+        {
+            foreach (var columna in ColumnasCabinaEstandar)
+            {
+                var numeroAsiento = $"{fila}{columna}";
+                if (numerosExistentes.Contains(numeroAsiento))
+                    continue;
+
+                var posicion = columna switch
+                {
+                    'A' or 'F' => "VENTANA",
+                    'B' or 'E' => "CENTRO",
+                    _ => "PASILLO"
+                };
+
+                var (clase, precioExtra) = ObtenerConfiguracionAsiento(fila);
+
+                await _asientoDataService.CreateAsync(new AsientoDataModel
+                {
+                    IdVuelo = idVuelo,
+                    NumeroAsiento = numeroAsiento,
+                    Clase = clase,
+                    Disponible = true,
+                    PrecioExtra = precioExtra,
+                    Posicion = posicion,
+                    Estado = "ACTIVO",
+                    Eliminado = false,
+                    CreadoPorUsuario = usuario
+                });
+            }
+        }
+    }
+
+    private static (string Clase, decimal PrecioExtra) ObtenerConfiguracionAsiento(int fila)
+    {
+        if (fila <= UltimaFilaPrimeraClase)
+            return ("PRIMERA", PrecioExtraPrimeraClase);
+
+        if (fila <= UltimaFilaEjecutiva)
+            return ("EJECUTIVA", PrecioExtraEjecutiva);
+
+        return ("ECONOMICA", PrecioExtraEconomica);
     }
 }

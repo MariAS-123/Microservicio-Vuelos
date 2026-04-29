@@ -28,8 +28,6 @@ public class ClienteResponseDto
 
     public DateTime? FechaNacimiento { get; set; }
 
-    public string? Nacionalidad { get; set; }
-
     public string? Genero { get; set; }
 
     public string Estado { get; set; } = null!;

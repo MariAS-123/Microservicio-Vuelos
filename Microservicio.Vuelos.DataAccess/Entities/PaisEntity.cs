@@ -24,5 +24,6 @@ namespace Microservicio.Vuelos.DataAccess.Entities
         public virtual ICollection<AeropuertoEntity> Aeropuertos { get; set; } = new HashSet<AeropuertoEntity>();
 
         public virtual ICollection<ClienteEntity> ClientesNacionalidad { get; set; } = new HashSet<ClienteEntity>();
+        public virtual ICollection<PasajeroEntity> PasajerosNacionalidad { get; set; } = new HashSet<PasajeroEntity>();
     }
 }

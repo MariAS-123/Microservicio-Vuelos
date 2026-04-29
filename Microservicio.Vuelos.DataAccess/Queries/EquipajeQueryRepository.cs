@@ -35,7 +35,7 @@ namespace Microservicio.Vuelos.DataAccess.Queries
                     Tipo = e.Tipo,
                     PesoKg = e.PesoKg,
                     EstadoEquipaje = e.EstadoEquipaje,
-                    Pasajero = e.Boleto.Reserva.Pasajero.NombrePasajero + " " + e.Boleto.Reserva.Pasajero.ApellidoPasajero,
+                    Pasajero = e.Boleto.Detalle.Pasajero.NombrePasajero + " " + e.Boleto.Detalle.Pasajero.ApellidoPasajero,
                     NumeroVuelo = e.Boleto.Vuelo.NumeroVuelo
                 })
                 .ToListAsync(cancellationToken);
@@ -53,7 +53,7 @@ namespace Microservicio.Vuelos.DataAccess.Queries
                     Tipo = e.Tipo,
                     PesoKg = e.PesoKg,
                     EstadoEquipaje = e.EstadoEquipaje,
-                    Pasajero = e.Boleto.Reserva.Pasajero.NombrePasajero + " " + e.Boleto.Reserva.Pasajero.ApellidoPasajero,
+                    Pasajero = e.Boleto.Detalle.Pasajero.NombrePasajero + " " + e.Boleto.Detalle.Pasajero.ApellidoPasajero,
                     NumeroVuelo = e.Boleto.Vuelo.NumeroVuelo
                 })
                 .ToListAsync(cancellationToken);
@@ -71,7 +71,7 @@ namespace Microservicio.Vuelos.DataAccess.Queries
                     Tipo = e.Tipo,
                     PesoKg = e.PesoKg,
                     EstadoEquipaje = e.EstadoEquipaje,
-                    Pasajero = e.Boleto.Reserva.Pasajero.NombrePasajero + " " + e.Boleto.Reserva.Pasajero.ApellidoPasajero,
+                    Pasajero = e.Boleto.Detalle.Pasajero.NombrePasajero + " " + e.Boleto.Detalle.Pasajero.ApellidoPasajero,
                     NumeroVuelo = e.Boleto.Vuelo.NumeroVuelo
                 })
                 .ToListAsync(cancellationToken);

@@ -1,11 +1,12 @@
-﻿// UsuarioAppUpdateRequestDto.cs
+using System.Text.Json.Serialization;
+
 namespace Microservicio.Vuelos.Business.DTOs.UsuarioApp;
 
 public class UsuarioAppUpdateRequestDto
 {
-    public int? IdCliente { get; set; }
-    public string Username { get; set; } = null!;
+    [JsonPropertyName("correo")]
     public string Correo { get; set; } = null!;
+
+    [JsonPropertyName("password")]
     public string? Password { get; set; }
-    // ✅ Sin EstadoUsuario ni Activo
 }

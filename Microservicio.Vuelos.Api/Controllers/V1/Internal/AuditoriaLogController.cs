@@ -29,4 +29,16 @@ public class AuditoriaLogController : ControllerBase
         return Ok(ApiResponse<object>.Ok(result, "Consulta de auditoría realizada correctamente."));
     }
 
+    [HttpGet("{id_auditoria:long}")]
+    [ProducesResponseType(typeof(ApiResponse<AuditoriaLogResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<AuditoriaLogResponseDto>>> GetById(long id_auditoria)
+    {
+        var result = await _service.GetByIdAsync(id_auditoria);
+        if (result is null)
+            return NotFound(ApiResponse<AuditoriaLogResponseDto>.Fail("Registro de auditoría no encontrado."));
+
+        return Ok(ApiResponse<AuditoriaLogResponseDto>.Ok(result, "Registro de auditoría obtenido correctamente."));
+    }
+
 }

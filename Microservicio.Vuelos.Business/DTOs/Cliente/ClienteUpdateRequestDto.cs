@@ -14,7 +14,6 @@ public class ClienteUpdateRequestDto
     public int IdCiudadResidencia { get; set; }
     public int IdPaisNacionalidad { get; set; }
     public DateTime? FechaNacimiento { get; set; }
-    public string? Nacionalidad { get; set; }
     public string? Genero { get; set; }
     // ✅ Sin Estado
 }

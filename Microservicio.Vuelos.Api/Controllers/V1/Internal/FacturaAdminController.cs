@@ -102,9 +102,9 @@ public class FacturaAdminController : ControllerBase
         return Ok(ApiResponse<FacturaResponseDto>.Ok(result, "Factura aprobada correctamente."));
     }
 
-    // POST /pagar ? CLIENTE simula pago y la factura pasa a APR
+    // POST /pagar queda solo como operación administrativa legacy.
     [HttpPost("{id_factura:int}/pagar")]
-    [Authorize(Roles = "CLIENTE")]
+    [Authorize(Roles = "ADMINISTRADOR,AEROLINEA")]
     [ProducesResponseType(typeof(ApiResponse<FacturaResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]

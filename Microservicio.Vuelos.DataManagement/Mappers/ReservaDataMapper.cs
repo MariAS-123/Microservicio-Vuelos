@@ -11,9 +11,17 @@ public static class ReservaDataMapper
         GuidReserva = e.GuidReserva,
         CodigoReserva = e.CodigoReserva,
         IdCliente = e.IdCliente,
-        IdPasajero = e.IdPasajero,
         IdVuelo = e.IdVuelo,
-        IdAsiento = e.IdAsiento,
+        IdPasajero = e.Detalles
+            .Where(d => !d.EsEliminado)
+            .OrderBy(d => d.IdDetalle)
+            .Select(d => d.IdPasajero)
+            .FirstOrDefault(),
+        IdAsiento = e.Detalles
+            .Where(d => !d.EsEliminado)
+            .OrderBy(d => d.IdDetalle)
+            .Select(d => d.IdAsiento)
+            .FirstOrDefault(),
         FechaReservaUtc = e.FechaReservaUtc,
         FechaInicio = e.FechaInicio,
         FechaFin = e.FechaFin,
@@ -37,7 +45,12 @@ public static class ReservaDataMapper
         Observaciones = e.Observaciones,
         FechaInhabilitacionUtc = e.FechaInhabilitacionUtc,
         MotivoInhabilitacion = e.MotivoInhabilitacion,
-        RowVersion = e.RowVersion
+        RowVersion = e.RowVersion,
+        Detalles = e.Detalles
+            .Where(d => !d.EsEliminado)
+            .OrderBy(d => d.IdDetalle)
+            .Select(ReservaDetalleDataMapper.ToDataModel)
+            .ToList()
     };
 
     public static ReservaEntity ToEntity(ReservaDataModel m) => new()
@@ -49,9 +62,7 @@ public static class ReservaDataMapper
         CodigoReserva = $"VU-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}",
 
         IdCliente = m.IdCliente,
-        IdPasajero = m.IdPasajero,
         IdVuelo = m.IdVuelo,
-        IdAsiento = m.IdAsiento,
         FechaReservaUtc = m.FechaReservaUtc == default ? DateTime.UtcNow : m.FechaReservaUtc,
         FechaInicio = m.FechaInicio,
         FechaFin = m.FechaFin,
@@ -106,15 +117,14 @@ public static class ReservaDataMapper
             : m.Observaciones.Trim(),
         FechaInhabilitacionUtc = m.FechaInhabilitacionUtc,
         MotivoInhabilitacion = m.MotivoInhabilitacion,
-        RowVersion = m.RowVersion
+        RowVersion = m.RowVersion,
+        Detalles = BuildDetalles(m)
     };
 
     public static void UpdateEntity(ReservaEntity e, ReservaDataModel m)
     {
         e.IdCliente = m.IdCliente;
-        e.IdPasajero = m.IdPasajero;
         e.IdVuelo = m.IdVuelo;
-        e.IdAsiento = m.IdAsiento;
         e.FechaInicio = m.FechaInicio;
         e.FechaFin = m.FechaFin;
         e.SubtotalReserva = m.SubtotalReserva;
@@ -156,5 +166,40 @@ public static class ReservaDataMapper
         e.ModificacionIp = string.IsNullOrWhiteSpace(m.ModificacionIp)
             ? null
             : m.ModificacionIp.Trim();
+
+    }
+
+    private static List<ReservaDetalleEntity> BuildDetalles(ReservaDataModel model)
+    {
+        var detalles = model.Detalles
+            .Where(d => d.IdPasajero > 0 && d.IdAsiento > 0)
+            .Select(ReservaDetalleDataMapper.ToEntity)
+            .ToList();
+
+        if (detalles.Count > 0)
+            return detalles;
+
+        if (model.IdPasajero > 0 && model.IdAsiento > 0)
+        {
+            return
+            [
+                new ReservaDetalleEntity
+                {
+                    IdPasajero = model.IdPasajero,
+                    IdAsiento = model.IdAsiento,
+                    SubtotalLinea = model.SubtotalReserva,
+                    ValorIvaLinea = model.ValorIva,
+                    TotalLinea = model.TotalReserva,
+                    Estado = "ACTIVO",
+                    EsEliminado = false,
+                    CreadoPorUsuario = string.IsNullOrWhiteSpace(model.CreadoPorUsuario)
+                        ? "SYSTEM"
+                        : model.CreadoPorUsuario.Trim(),
+                    FechaRegistroUtc = model.FechaRegistroUtc == default ? DateTime.UtcNow : model.FechaRegistroUtc
+                }
+            ];
+        }
+
+        return [];
     }
 }

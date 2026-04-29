@@ -10,6 +10,7 @@ public static class BoletoDataMapper
         IdBoleto = entity.IdBoleto,
         RowVersion = entity.RowVersion,
         IdReserva = entity.IdReserva,
+        IdDetalle = entity.IdDetalle,
         IdVuelo = entity.IdVuelo,
         IdAsiento = entity.IdAsiento,
         IdFactura = entity.IdFactura,
@@ -36,6 +37,7 @@ public static class BoletoDataMapper
         IdBoleto = model.IdBoleto,
         RowVersion = model.RowVersion,
         IdReserva = model.IdReserva,
+        IdDetalle = model.IdDetalle,
         IdVuelo = model.IdVuelo,
         IdAsiento = model.IdAsiento,
         IdFactura = model.IdFactura,
@@ -76,6 +78,7 @@ public static class BoletoDataMapper
     public static void UpdateEntity(BoletoEntity entity, BoletoDataModel model)
     {
         entity.IdReserva = model.IdReserva;
+        entity.IdDetalle = model.IdDetalle;
         entity.IdVuelo = model.IdVuelo;
         entity.IdAsiento = model.IdAsiento;
         entity.IdFactura = model.IdFactura;

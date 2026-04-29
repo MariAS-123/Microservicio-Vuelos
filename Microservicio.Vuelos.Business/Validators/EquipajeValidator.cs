@@ -42,6 +42,9 @@ public class EquipajeValidator
 
             if (tipo == "MANO" && dto.PesoKg > 10)
                 errors.Add("El equipaje de mano no puede superar 10 kg.");
+
+            if (tipo == "BODEGA" && dto.PesoKg > 23)
+                errors.Add("El equipaje de bodega no puede superar 23 kg.");
         }
 
         if (dto.PesoKg <= 0)

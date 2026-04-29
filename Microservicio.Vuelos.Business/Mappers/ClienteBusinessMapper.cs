@@ -32,7 +32,6 @@ public static class ClienteBusinessMapper
             IdCiudadResidencia = dto.IdCiudadResidencia,
             IdPaisNacionalidad = dto.IdPaisNacionalidad,
             FechaNacimiento = dto.FechaNacimiento,
-            Nacionalidad = dto.Nacionalidad,
             Genero = dto.Genero,
             Estado = "ACT",
             EsEliminado = false,
@@ -57,7 +56,6 @@ public static class ClienteBusinessMapper
             IdCiudadResidencia = dto.IdCiudadResidencia,
             IdPaisNacionalidad = dto.IdPaisNacionalidad,
             FechaNacimiento = dto.FechaNacimiento,
-            Nacionalidad = dto.Nacionalidad,
             Genero = dto.Genero,
             Estado = "ACT",
             ModificadoPorUsuario = modificadoPorUsuario
@@ -81,7 +79,6 @@ public static class ClienteBusinessMapper
             IdCiudadResidencia = model.IdCiudadResidencia,
             IdPaisNacionalidad = model.IdPaisNacionalidad,
             FechaNacimiento = model.FechaNacimiento,
-            Nacionalidad = model.Nacionalidad,
             Genero = model.Genero,
             Estado = model.Estado
         };

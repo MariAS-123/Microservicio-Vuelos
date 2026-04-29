@@ -1,11 +1,18 @@
 using Microservicio.Vuelos.Api.Extensions;
 using Microservicio.Vuelos.Api.Middleware;
+using Microservicio.Vuelos.Api.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// En local evitamos EventLog de Windows porque en este entorno rompe las requests
+// por permisos de escritura sobre el log del sistema.
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
 
 // Controllers
 builder.Services.AddControllers();
+builder.Services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
 
 // Versioning
 builder.Services.AddApiVersioningDocumentation();

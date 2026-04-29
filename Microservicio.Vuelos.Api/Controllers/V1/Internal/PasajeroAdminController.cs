@@ -54,6 +54,15 @@ public class PasajeroAdminController : ControllerBase
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<PasajeroResponseDto>>> Create([FromBody] PasajeroRequestDto request)
     {
+        if (GetRol() == "CLIENTE")
+        {
+            var idCliente = GetIdCliente();
+            if (idCliente is null)
+                return Unauthorized(ApiResponse<PasajeroResponseDto>.Fail("No se pudo identificar el cliente del token."));
+
+            request.IdCliente = idCliente.Value;
+        }
+
         var usuario = GetUsuario();
         var result = await _pasajeroService.CreateAsync(request, usuario);
 

@@ -28,6 +28,7 @@ public class AsientoAdminController : ControllerBase
 
     // GET /vuelos/{id_vuelo}/asientos
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<object>>> GetPaged(
         int id_vuelo,
@@ -37,7 +38,7 @@ public class AsientoAdminController : ControllerBase
         [FromQuery] string? posicion,
         [FromQuery] string? estado,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery(Name = "page_size")] int pageSize = 20)
     {
         var filter = new AsientoFilterDto
         {
@@ -53,7 +54,7 @@ public class AsientoAdminController : ControllerBase
 
         var result = await _asientoService.GetPagedAsync(filter);
 
-        if (GetRol() == "CLIENTE")
+        if (EsConsultaPublicaOCliente())
         {
             var reservasVuelo = await _reservaService.GetPagedAsync(new ReservaFilterDto
             {
@@ -64,7 +65,7 @@ public class AsientoAdminController : ControllerBase
 
             var asientosReservadosActivos = reservasVuelo.Items
                 .Where(r => r.EstadoReserva is "PEN" or "CON" or "EMI")
-                .Select(r => r.IdAsiento)
+                .SelectMany(r => r.Detalles.Where(d => !d.EsEliminado).Select(d => d.IdAsiento))
                 .ToHashSet();
 
             var itemsFiltrados = result.Items
@@ -85,6 +86,7 @@ public class AsientoAdminController : ControllerBase
 
     // GET /vuelos/{id_vuelo}/asientos/{id_asiento}
     [HttpGet("{id_asiento:int}")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<AsientoResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<AsientoResponseDto>>> GetById(int id_vuelo, int id_asiento)
@@ -155,6 +157,12 @@ public class AsientoAdminController : ControllerBase
 
     private string GetRol() =>
         User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
+
+    private bool EsConsultaPublicaOCliente()
+    {
+        var rol = GetRol();
+        return string.IsNullOrWhiteSpace(rol) || rol == "CLIENTE";
+    }
 
     public class AsientoDisponibilidadPatchDto
     {

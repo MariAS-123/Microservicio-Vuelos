@@ -23,6 +23,7 @@ public class AuthService : IAuthService
     private readonly IUsuarioAppService _usuarioAppService;
     private readonly IUsuarioRolService _usuarioRolService;
     private readonly IRolDataService _rolDataService;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly AuthValidator _validator;
     private readonly IConfiguration _configuration;
 
@@ -32,6 +33,7 @@ public class AuthService : IAuthService
         IUsuarioAppService usuarioAppService,
         IUsuarioRolService usuarioRolService,
         IRolDataService rolDataService,
+        IUnitOfWork unitOfWork,
         IConfiguration configuration)
     {
         _usuarioDataService = usuarioDataService;
@@ -39,6 +41,7 @@ public class AuthService : IAuthService
         _usuarioAppService = usuarioAppService;
         _usuarioRolService = usuarioRolService;
         _rolDataService = rolDataService;
+        _unitOfWork = unitOfWork;
         _validator = new AuthValidator();
         _configuration = configuration;
     }
@@ -47,21 +50,21 @@ public class AuthService : IAuthService
     {
         _validator.ValidateLogin(request);
 
-        var user = await _usuarioDataService.GetByUsernameAsync(request.Usuario);
+        var user = await _usuarioDataService.GetByUsernameAsync(request.Username);
 
         if (user == null)
-            throw new UnauthorizedBusinessException("Usuario o contraseña incorrectos.");
+            throw new UnauthorizedBusinessException("Usuario o contrasena incorrectos.");
 
         if (!user.Activo || user.EsEliminado || user.EstadoUsuario != "ACT")
-            throw new UnauthorizedBusinessException("El usuario no está activo.");
+            throw new UnauthorizedBusinessException("El usuario no esta activo.");
 
         if (!IsPasswordValid(request.Password, user.PasswordHash, user.PasswordSalt))
-            throw new UnauthorizedBusinessException("Usuario o contraseña incorrectos.");
+            throw new UnauthorizedBusinessException("Usuario o contrasena incorrectos.");
 
         var expirationMinutes = _configuration.GetValue<int>("JwtSettings:ExpirationMinutes");
         var expiracion = DateTime.UtcNow.AddMinutes(expirationMinutes);
 
-        var token = GenerateJwtToken(user.Username, user.Roles, user.IdCliente, expiracion); // ✅
+        var token = GenerateJwtToken(user.Username, user.Roles, user.IdCliente, expiracion);
 
         return AuthBusinessMapper.ToLoginResponse(user, token, expiracion);
     }
@@ -72,27 +75,26 @@ public class AuthService : IAuthService
 
         var rolCliente = await _rolDataService.GetByNombreAsync("CLIENTE");
         if (rolCliente == null || rolCliente.EsEliminado || !rolCliente.Activo || rolCliente.EstadoRol != "ACT")
-            throw new BusinessException("No se encontró el rol CLIENTE activo para registrar la cuenta.");
+            throw new BusinessException("No se encontro el rol CLIENTE activo para registrar la cuenta.");
 
-        var cliente = await _clienteService.CreateAsync(new ClienteRequestDto
+        return await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            TipoIdentificacion = request.TipoIdentificacion,
-            NumeroIdentificacion = request.NumeroIdentificacion,
-            Nombres = request.Nombres,
-            Apellidos = request.Apellidos,
-            RazonSocial = request.RazonSocial,
-            Correo = request.Correo,
-            Telefono = request.Telefono,
-            Direccion = request.Direccion,
-            IdCiudadResidencia = request.IdCiudadResidencia,
-            IdPaisNacionalidad = request.IdPaisNacionalidad,
-            FechaNacimiento = request.FechaNacimiento,
-            Nacionalidad = request.Nacionalidad,
-            Genero = request.Genero
-        }, "SELF_REGISTER");
+            var cliente = await _clienteService.CreateAsync(new ClienteRequestDto
+            {
+                TipoIdentificacion = request.TipoIdentificacion,
+                NumeroIdentificacion = request.NumeroIdentificacion,
+                Nombres = request.Nombres,
+                Apellidos = request.Apellidos,
+                RazonSocial = request.RazonSocial,
+                Correo = request.Correo,
+                Telefono = request.Telefono,
+                Direccion = request.Direccion,
+                IdCiudadResidencia = request.IdCiudadResidencia,
+                IdPaisNacionalidad = request.IdPaisNacionalidad,
+                FechaNacimiento = request.FechaNacimiento,
+                Genero = request.Genero
+            }, "SELF_REGISTER");
 
-        try
-        {
             var usuario = await _usuarioAppService.CreateAsync(new UsuarioAppRequestDto
             {
                 IdCliente = cliente.IdCliente,
@@ -114,29 +116,34 @@ public class AuthService : IAuthService
                 Username = usuario.Username,
                 RolAsignado = "CLIENTE"
             };
-        }
-        catch
-        {
-            // rollback compensatorio: evita cliente huérfano si falla usuario/rol.
-            await _clienteService.DeleteAsync(cliente.IdCliente, "SELF_REGISTER");
-            throw;
-        }
+        });
     }
 
-    private string GenerateJwtToken(string username, List<string> roles, int? idCliente, DateTime expiracion) // ✅
+    public Task LogoutAsync(string token, string ejecutadoPorUsuario)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            throw new UnauthorizedBusinessException("No se recibio un token valido para cerrar sesion.");
+
+        if (string.IsNullOrWhiteSpace(ejecutadoPorUsuario))
+            throw new UnauthorizedBusinessException("No se pudo identificar al usuario autenticado.");
+
+        return Task.CompletedTask;
+    }
+
+    private string GenerateJwtToken(string username, List<string> roles, int? idCliente, DateTime expiracion)
     {
         var secretKey = _configuration["JwtSettings:SecretKey"];
         var issuer = _configuration["JwtSettings:Issuer"];
         var audience = _configuration["JwtSettings:Audience"];
 
         if (string.IsNullOrWhiteSpace(secretKey))
-            throw new BusinessException("No se encontró JwtSettings:SecretKey en la configuración.");
+            throw new BusinessException("No se encontro JwtSettings:SecretKey en la configuracion.");
 
         if (string.IsNullOrWhiteSpace(issuer))
-            throw new BusinessException("No se encontró JwtSettings:Issuer en la configuración.");
+            throw new BusinessException("No se encontro JwtSettings:Issuer en la configuracion.");
 
         if (string.IsNullOrWhiteSpace(audience))
-            throw new BusinessException("No se encontró JwtSettings:Audience en la configuración.");
+            throw new BusinessException("No se encontro JwtSettings:Audience en la configuracion.");
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -147,7 +154,6 @@ public class AuthService : IAuthService
             new("username", username)
         };
 
-        // ✅ Incluir id_cliente en el token si el usuario tiene cliente asociado
         if (idCliente.HasValue)
             claims.Add(new Claim("id_cliente", idCliente.Value.ToString()));
 
@@ -167,7 +173,6 @@ public class AuthService : IAuthService
 
     private static bool IsPasswordValid(string password, string storedHash, string? storedSalt)
     {
-        // Compatibilidad temporal: si quedó almacenada en texto plano.
         if (string.Equals(storedHash, password, StringComparison.Ordinal))
             return true;
 
@@ -193,5 +198,4 @@ public class AuthService : IAuthService
             return false;
         }
     }
-
 }

@@ -84,6 +84,11 @@ public class BoletoService : IBoletoService
         if (reserva == null)
             throw new NotFoundException("La reserva indicada no existe.");
 
+        var detalleReserva = reserva.Detalles
+            .FirstOrDefault(d => !d.EsEliminado && d.IdDetalle == request.IdDetalle);
+        if (detalleReserva == null)
+            throw new BusinessException("El detalle de reserva indicado no existe o no pertenece a la reserva.");
+
         var vuelo = await _vueloDataService.GetByIdAsync(request.IdVuelo);
         if (vuelo == null)
             throw new NotFoundException("El vuelo indicado no existe.");
@@ -103,8 +108,8 @@ public class BoletoService : IBoletoService
         if (reserva.IdVuelo != request.IdVuelo)
             throw new BusinessException("La reserva no pertenece al vuelo indicado.");
 
-        if (reserva.IdAsiento != request.IdAsiento)
-            throw new BusinessException("La reserva no pertenece al asiento indicado.");
+        if (detalleReserva.IdAsiento != request.IdAsiento)
+            throw new BusinessException("El detalle de reserva no pertenece al asiento indicado.");
 
         if (factura.IdReserva != request.IdReserva)
             throw new BusinessException("La factura no pertenece a la reserva indicada.");
@@ -116,8 +121,8 @@ public class BoletoService : IBoletoService
             throw new BusinessException("Solo se puede emitir boleto para reservas en estado CON o EMI.");
 
         var estadoFactura = factura.Estado.Trim().ToUpperInvariant();
-        if (estadoFactura != "ABI")
-            throw new BusinessException("Solo se puede emitir boleto con factura abierta (ABI).");
+        if (estadoFactura != "APR")
+            throw new BusinessException("Solo se puede emitir boleto con factura aprobada (APR).");
 
         var existentes = await _boletoDataService.GetPagedAsync(new BoletoFiltroDataModel
         {
@@ -126,15 +131,18 @@ public class BoletoService : IBoletoService
             PageSize = 10000
         });
 
-        if (existentes.Items.Any(x => x.IdReserva == request.IdReserva))
-            throw new BusinessException("Ya existe un boleto para la reserva indicada.");
+        if (existentes.Items.Any(x => x.IdDetalle == request.IdDetalle))
+            throw new BusinessException("Ya existe un boleto para el detalle de reserva indicado.");
 
         var dataModel = BoletoBusinessMapper.ToDataModel(request, creadoPorUsuario);
         var creado = await _boletoDataService.CreateAsync(dataModel);
 
-        // Si la reserva estaba confirmada, al emitir boleto pasa automáticamente a EMI.
-        var estadoReservaActual = reserva.EstadoReserva.Trim().ToUpperInvariant();
-        if (estadoReservaActual == "CON")
+        var boletosActivos = existentes.Items.Count(x => x.EstadoBoleto != "CANCELADO") + 1;
+        var detallesActivos = reserva.Detalles.Count(x => !x.EsEliminado);
+
+        if (reserva.EstadoReserva.Trim().ToUpperInvariant() == "CON" &&
+            detallesActivos > 0 &&
+            boletosActivos >= detallesActivos)
         {
             reserva.EstadoReserva = "EMI";
             reserva.ModificadoPorUsuario = creadoPorUsuario;

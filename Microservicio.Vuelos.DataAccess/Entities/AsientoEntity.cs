@@ -37,7 +37,7 @@ namespace Microservicio.Vuelos.DataAccess.Entities
 
         public virtual VueloEntity Vuelo { get; set; } = null!;
 
-        public virtual ICollection<ReservaEntity> Reservas { get; set; } = new HashSet<ReservaEntity>();
+        public virtual ICollection<ReservaDetalleEntity> ReservaDetalles { get; set; } = new HashSet<ReservaDetalleEntity>();
 
         public virtual ICollection<BoletoEntity> Boletos { get; set; } = new HashSet<BoletoEntity>();
     }

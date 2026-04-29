@@ -33,9 +33,9 @@ namespace Microservicio.Vuelos.DataAccess.Queries
                     NumeroAsiento = a.NumeroAsiento,
                     Clase = a.Clase,
                     Disponible = a.Disponible,
-                    Pasajero = a.Reservas
-                        .Where(r => !r.EsEliminado)
-                        .Select(r => r.Pasajero.NombrePasajero + " " + r.Pasajero.ApellidoPasajero)
+                    Pasajero = a.ReservaDetalles
+                        .Where(d => !d.EsEliminado && !d.Reserva.EsEliminado)
+                        .Select(d => d.Pasajero.NombrePasajero + " " + d.Pasajero.ApellidoPasajero)
                         .FirstOrDefault()
                 })
                 .ToListAsync(cancellationToken);

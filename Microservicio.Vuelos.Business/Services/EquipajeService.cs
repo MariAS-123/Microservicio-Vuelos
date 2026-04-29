@@ -147,8 +147,8 @@ public class EquipajeService : IEquipajeService
             throw new NotFoundException("La factura asociada al boleto no existe.");
 
         var estadoFactura = factura.Estado.Trim().ToUpperInvariant();
-        if (estadoFactura != "ABI")
-            throw new BusinessException("Solo se puede registrar equipaje cuando la factura está ABI.");
+        if (estadoFactura != "APR")
+            throw new BusinessException("Solo se puede registrar equipaje cuando la factura está APR.");
 
         if (rolDelToken == "CLIENTE")
         {
@@ -165,7 +165,6 @@ public class EquipajeService : IEquipajeService
         dataModel.DimensionesCm = EquipajePricingPolicy.ObtenerDimensionesEstandar(request.Tipo);
         var creado = await _equipajeDataService.CreateAsync(dataModel);
 
-        // Sincroniza el acumulado de equipaje en boleto para mantener consistencia visual/operativa.
         boleto.CargoEquipaje = Math.Round(boleto.CargoEquipaje + creado.PrecioExtra, 2, MidpointRounding.AwayFromZero);
         boleto.PrecioFinal = Math.Round(
             boleto.PrecioVueloBase + boleto.PrecioAsientoExtra + boleto.ImpuestosBoleto + boleto.CargoEquipaje,
@@ -175,12 +174,7 @@ public class EquipajeService : IEquipajeService
         boleto.FechaModificacionUtc = DateTime.UtcNow;
         await _boletoDataService.UpdateAsync(boleto);
 
-        // Recalcula la factura abierta incorporando el cargo por equipaje.
-        factura.CargoServicio = Math.Round(factura.CargoServicio + creado.PrecioExtra, 2, MidpointRounding.AwayFromZero);
-        factura.Total = Math.Round(factura.Subtotal + factura.ValorIva + factura.CargoServicio, 2, MidpointRounding.AwayFromZero);
-        factura.ModificadoPorUsuario = creadoPorUsuario;
-        factura.FechaModificacionUtc = DateTime.UtcNow;
-        await _facturaDataService.UpdateAsync(factura);
+        await RecalcularFacturaDesdeBoletosAsync(factura, boleto.IdReserva, creadoPorUsuario);
 
         return EquipajeBusinessMapper.ToResponseDto(creado);
     }
@@ -211,8 +205,8 @@ public class EquipajeService : IEquipajeService
             throw new NotFoundException("La factura asociada al boleto no existe.");
 
         var estadoFactura = factura.Estado.Trim().ToUpperInvariant();
-        if (estadoFactura is "APR" or "INA")
-            throw new BusinessException("No se puede modificar equipaje cuando la factura está APR o INA.");
+        if (estadoFactura == "INA")
+            throw new BusinessException("No se puede modificar equipaje cuando la factura está INA.");
 
         var estadoActual = actual.EstadoEquipaje.Trim().ToUpperInvariant();
         var estadoNuevo = request.EstadoEquipaje.Trim().ToUpperInvariant();
@@ -270,5 +264,36 @@ public class EquipajeService : IEquipajeService
             PageSize = size,
             TotalRecords = 0
         };
+    }
+
+    private async Task RecalcularFacturaDesdeBoletosAsync(
+        FacturaDataModel factura,
+        int idReserva,
+        string usuario)
+    {
+        var boletos = (await _boletoDataService.GetPagedAsync(new BoletoFiltroDataModel
+        {
+            IdReserva = idReserva,
+            PageNumber = 1,
+            PageSize = 200,
+            IncluirEliminados = false
+        })).Items;
+
+        factura.Subtotal = Math.Round(
+            boletos.Sum(x => x.PrecioVueloBase + x.PrecioAsientoExtra + x.CargoEquipaje),
+            2,
+            MidpointRounding.AwayFromZero);
+        factura.ValorIva = Math.Round(
+            boletos.Sum(x => x.ImpuestosBoleto),
+            2,
+            MidpointRounding.AwayFromZero);
+        factura.Total = Math.Round(
+            factura.Subtotal + factura.ValorIva + factura.CargoServicio,
+            2,
+            MidpointRounding.AwayFromZero);
+        factura.ModificadoPorUsuario = usuario;
+        factura.FechaModificacionUtc = DateTime.UtcNow;
+
+        await _facturaDataService.UpdateAsync(factura);
     }
 }

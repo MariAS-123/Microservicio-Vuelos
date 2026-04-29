@@ -79,8 +79,8 @@ public class FacturaService : IFacturaService
         var reserva = await _reservaDataService.GetByIdAsync(request.IdReserva);
         if (reserva == null)
             throw new NotFoundException("La reserva indicada no existe.");
-        if (reserva.EstadoReserva is not ("CON" or "EMI"))
-            throw new BusinessException("Solo se puede facturar una reserva en estado CON o EMI.");
+        if (reserva.EstadoReserva is "CAN" or "FIN")
+            throw new BusinessException("No se puede facturar una reserva cancelada o finalizada.");
 
         if (reserva.IdCliente != request.IdCliente)
             throw new BusinessException("La reserva no pertenece al cliente indicado.");
@@ -135,8 +135,8 @@ public class FacturaService : IFacturaService
         if (reserva == null)
             throw new NotFoundException("La reserva asociada a la factura no existe.");
 
-        if (estadoNuevo == "APR" && reserva.EstadoReserva is not ("CON" or "EMI"))
-            throw new BusinessException("Solo se puede aprobar una factura cuando la reserva está CON o EMI.");
+        if (estadoNuevo == "APR" && reserva.EstadoReserva is ("CAN" or "FIN"))
+            throw new BusinessException("No se puede aprobar una factura de una reserva cancelada o finalizada.");
 
         actual.Estado = estadoNuevo;
         actual.ModificadoPorUsuario = modificadoPorUsuario;
@@ -159,15 +159,15 @@ public class FacturaService : IFacturaService
 
     public async Task<FacturaResponseDto?> PagarAsync(int idFactura, int? idClienteDelToken, string rolDelToken, string modificadoPorUsuario)
     {
-        if (rolDelToken != "CLIENTE")
-            throw new UnauthorizedBusinessException("Solo el cliente puede simular el pago de factura.");
-
         var factura = await _facturaDataService.GetByIdAsync(idFactura);
         if (factura == null)
             throw new NotFoundException("Factura no encontrada.");
 
-        if (idClienteDelToken == null || factura.IdCliente != idClienteDelToken.Value)
+        if (rolDelToken == "CLIENTE" &&
+            (idClienteDelToken == null || factura.IdCliente != idClienteDelToken.Value))
+        {
             throw new UnauthorizedBusinessException("No tienes permiso para pagar esta factura.");
+        }
 
         return await UpdateEstadoAsync(
             idFactura,

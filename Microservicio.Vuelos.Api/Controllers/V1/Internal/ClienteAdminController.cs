@@ -47,9 +47,9 @@ public class ClienteAdminController : ControllerBase
         return Ok(ApiResponse<ClienteResponseDto>.Ok(result));
     }
 
-    // POST ? ADMINISTRADOR, AEROLINEA y CLIENTE pueden registrar clientes
+    // POST ? ADMINISTRADOR y AEROLINEA pueden registrar clientes
     [HttpPost]
-    [Authorize(Roles = "ADMINISTRADOR,AEROLINEA,CLIENTE")]
+    [Authorize(Roles = "ADMINISTRADOR,AEROLINEA")]
     [ProducesResponseType(typeof(ApiResponse<ClienteResponseDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]

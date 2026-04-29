@@ -15,8 +15,7 @@ public class PasajeroResponseDto
     public string NumeroDocumentoPasajero { get; set; } = null!;
 
     public DateTime? FechaNacimientoPasajero { get; set; }
-
-    public string? NacionalidadPasajero { get; set; }
+    public int? IdPaisNacionalidad { get; set; }
 
     public string? EmailContactoPasajero { get; set; }
 

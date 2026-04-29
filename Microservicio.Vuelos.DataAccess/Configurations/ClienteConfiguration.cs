@@ -79,11 +79,6 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
                 .HasColumnName("fecha_nacimiento")
                 .HasColumnType("date");
 
-            builder.Property(e => e.Nacionalidad)
-                .HasColumnName("nacionalidad")
-                .HasMaxLength(80)
-                .IsUnicode(false);
-
             builder.Property(e => e.Genero)
                 .HasColumnName("genero")
                 .HasMaxLength(20)

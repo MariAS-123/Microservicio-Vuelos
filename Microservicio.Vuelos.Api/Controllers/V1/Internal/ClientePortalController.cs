@@ -148,9 +148,7 @@ public class ClientePortalController : ControllerBase
         if (reserva is null)
             return NotFound(ApiResponse<ClienteReservaDetalleResponseDto>.Fail("Reserva no encontrada."));
 
-        var pasajero = await _pasajeroService.GetByIdAsync(reserva.IdPasajero, idCliente, "CLIENTE");
         var vuelo = await _vueloService.GetByIdAsync(reserva.IdVuelo);
-        var asiento = await _asientoService.GetByIdAsync(reserva.IdAsiento);
 
         var facturasResult = await _facturaService.GetPagedAsync(new FacturaFilterDto
         {
@@ -168,22 +166,56 @@ public class ClientePortalController : ControllerBase
             Page = 1,
             PageSize = 50
         });
-        var boleto = boletosResult.Items.FirstOrDefault();
 
-        var equipajes = new List<EquipajeResponseDto>();
-        if (boleto is not null)
+        var detalles = new List<ClienteReservaDetalleItemResponseDto>();
+        foreach (var detalleReserva in reserva.Detalles.Where(d => !d.EsEliminado))
         {
-            var equipajesResult = await _equipajeService.GetPagedAsync(
-                new EquipajeFilterDto
-                {
-                    IdBoleto = boleto.IdBoleto,
-                    Page = 1,
-                    PageSize = 200
-                },
-                idCliente,
-                "CLIENTE");
-            equipajes = equipajesResult.Items.ToList();
+            var pasajero = await _pasajeroService.GetByIdAsync(detalleReserva.IdPasajero, idCliente, "CLIENTE");
+            var asiento = await _asientoService.GetByIdAsync(detalleReserva.IdAsiento);
+            var boleto = boletosResult.Items.FirstOrDefault(x => x.IdDetalle == detalleReserva.IdDetalle);
+
+            var equipajes = new List<EquipajeResponseDto>();
+            if (boleto is not null)
+            {
+                var equipajesResult = await _equipajeService.GetPagedAsync(
+                    new EquipajeFilterDto
+                    {
+                        IdBoleto = boleto.IdBoleto,
+                        Page = 1,
+                        PageSize = 200
+                    },
+                    idCliente,
+                    "CLIENTE");
+                equipajes = equipajesResult.Items.ToList();
+            }
+
+            detalles.Add(new ClienteReservaDetalleItemResponseDto
+            {
+                IdDetalle = detalleReserva.IdDetalle,
+                Pasajero = pasajero is null
+                    ? null
+                    : new PasajeroResumenDto
+                    {
+                        IdPasajero = pasajero.IdPasajero,
+                        NombreCompleto = $"{pasajero.NombrePasajero} {pasajero.ApellidoPasajero}".Trim(),
+                        TipoDocumento = pasajero.TipoDocumentoPasajero,
+                        NumeroDocumento = pasajero.NumeroDocumentoPasajero
+                    },
+                Asiento = asiento is null
+                    ? null
+                    : new AsientoResumenDto
+                    {
+                        IdAsiento = asiento.IdAsiento,
+                        NumeroAsiento = asiento.NumeroAsiento,
+                        Clase = asiento.Clase,
+                        Posicion = asiento.Posicion
+                    },
+                Boleto = boleto,
+                Equipajes = equipajes
+            });
         }
+
+        var primerDetalle = detalles.FirstOrDefault();
 
         var detalle = new ClienteReservaDetalleResponseDto
         {
@@ -192,15 +224,7 @@ public class ClientePortalController : ControllerBase
             EstadoReserva = reserva.EstadoReserva,
             FechaReservaUtc = reserva.FechaReservaUtc,
             Cliente = new ClienteResumenDto { IdCliente = reserva.IdCliente },
-            Pasajero = pasajero is null
-                ? null
-                : new PasajeroResumenDto
-                {
-                    IdPasajero = pasajero.IdPasajero,
-                    NombreCompleto = $"{pasajero.NombrePasajero} {pasajero.ApellidoPasajero}".Trim(),
-                    TipoDocumento = pasajero.TipoDocumentoPasajero,
-                    NumeroDocumento = pasajero.NumeroDocumentoPasajero
-                },
+            Pasajero = primerDetalle?.Pasajero,
             Vuelo = vuelo is null
                 ? null
                 : new VueloResumenDto
@@ -211,18 +235,11 @@ public class ClientePortalController : ControllerBase
                     FechaHoraLlegada = vuelo.FechaHoraLlegada,
                     EstadoVuelo = vuelo.EstadoVuelo
                 },
-            Asiento = asiento is null
-                ? null
-                : new AsientoResumenDto
-                {
-                    IdAsiento = asiento.IdAsiento,
-                    NumeroAsiento = asiento.NumeroAsiento,
-                    Clase = asiento.Clase,
-                    Posicion = asiento.Posicion
-                },
+            Asiento = primerDetalle?.Asiento,
             Factura = factura,
-            Boleto = boleto,
-            Equipajes = equipajes
+            Boleto = primerDetalle?.Boleto,
+            Equipajes = primerDetalle?.Equipajes ?? new List<EquipajeResponseDto>(),
+            Detalles = detalles
         };
 
         return Ok(ApiResponse<ClienteReservaDetalleResponseDto>.Ok(detalle, "Detalle de reserva obtenido correctamente."));
@@ -343,6 +360,16 @@ public class ClientePortalController : ControllerBase
         public VueloResumenDto? Vuelo { get; set; }
         public AsientoResumenDto? Asiento { get; set; }
         public FacturaResponseDto? Factura { get; set; }
+        public BoletoResponseDto? Boleto { get; set; }
+        public List<EquipajeResponseDto> Equipajes { get; set; } = new();
+        public List<ClienteReservaDetalleItemResponseDto> Detalles { get; set; } = new();
+    }
+
+    public class ClienteReservaDetalleItemResponseDto
+    {
+        public int IdDetalle { get; set; }
+        public PasajeroResumenDto? Pasajero { get; set; }
+        public AsientoResumenDto? Asiento { get; set; }
         public BoletoResponseDto? Boleto { get; set; }
         public List<EquipajeResponseDto> Equipajes { get; set; } = new();
     }

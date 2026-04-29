@@ -23,16 +23,16 @@ namespace Microservicio.Vuelos.DataAccess.Queries
 
         public async Task<List<PasajeroReservaDto>> ObtenerPasajerosDeReservaAsync(int idReserva, CancellationToken cancellationToken = default)
         {
-            return await _context.Reservas
+            return await _context.ReservaDetalles
                 .AsNoTracking()
-                .Where(r => r.IdReserva == idReserva && !r.EsEliminado)
-                .Select(r => new PasajeroReservaDto
+                .Where(d => d.IdReserva == idReserva && !d.EsEliminado && !d.Reserva.EsEliminado)
+                .Select(d => new PasajeroReservaDto
                 {
-                    IdPasajero = r.Pasajero.IdPasajero,
-                    NombreCompleto = r.Pasajero.NombrePasajero + " " + r.Pasajero.ApellidoPasajero,
-                    Documento = r.Pasajero.TipoDocumentoPasajero + " " + r.Pasajero.NumeroDocumentoPasajero,
-                    CodigoReserva = r.CodigoReserva,
-                    CodigosBoleto = r.Boletos
+                    IdPasajero = d.Pasajero.IdPasajero,
+                    NombreCompleto = d.Pasajero.NombrePasajero + " " + d.Pasajero.ApellidoPasajero,
+                    Documento = d.Pasajero.TipoDocumentoPasajero + " " + d.Pasajero.NumeroDocumentoPasajero,
+                    CodigoReserva = d.Reserva.CodigoReserva,
+                    CodigosBoleto = d.Reserva.Boletos
                         .Where(b => !b.EsEliminado)
                         .Select(b => b.CodigoBoleto)
                         .ToList()
@@ -42,16 +42,16 @@ namespace Microservicio.Vuelos.DataAccess.Queries
 
         public async Task<List<PasajeroReservaDto>> ObtenerPasajerosDeVueloAsync(int idVuelo, CancellationToken cancellationToken = default)
         {
-            return await _context.Reservas
+            return await _context.ReservaDetalles
                 .AsNoTracking()
-                .Where(r => r.IdVuelo == idVuelo && !r.EsEliminado)
-                .Select(r => new PasajeroReservaDto
+                .Where(d => d.Reserva.IdVuelo == idVuelo && !d.EsEliminado && !d.Reserva.EsEliminado)
+                .Select(d => new PasajeroReservaDto
                 {
-                    IdPasajero = r.Pasajero.IdPasajero,
-                    NombreCompleto = r.Pasajero.NombrePasajero + " " + r.Pasajero.ApellidoPasajero,
-                    Documento = r.Pasajero.TipoDocumentoPasajero + " " + r.Pasajero.NumeroDocumentoPasajero,
-                    CodigoReserva = r.CodigoReserva,
-                    CodigosBoleto = r.Boletos
+                    IdPasajero = d.Pasajero.IdPasajero,
+                    NombreCompleto = d.Pasajero.NombrePasajero + " " + d.Pasajero.ApellidoPasajero,
+                    Documento = d.Pasajero.TipoDocumentoPasajero + " " + d.Pasajero.NumeroDocumentoPasajero,
+                    CodigoReserva = d.Reserva.CodigoReserva,
+                    CodigosBoleto = d.Reserva.Boletos
                         .Where(b => !b.EsEliminado)
                         .Select(b => b.CodigoBoleto)
                         .ToList()

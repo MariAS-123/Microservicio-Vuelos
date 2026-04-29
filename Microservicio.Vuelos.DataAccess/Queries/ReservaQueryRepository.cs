@@ -25,9 +25,8 @@ namespace Microservicio.Vuelos.DataAccess.Queries
             public decimal ValorIva { get; set; }
             public decimal TotalReserva { get; set; }
             public ClienteDto Cliente { get; set; } = new();
-            public PasajeroDto Pasajero { get; set; } = new();
+            public List<ReservaDetalleDto> Detalles { get; set; } = new();
             public VueloDto Vuelo { get; set; } = new();
-            public AsientoDto Asiento { get; set; } = new();
             public List<FacturaDto> Facturas { get; set; } = new();
             public List<BoletoDto> Boletos { get; set; } = new();
         }
@@ -65,6 +64,13 @@ namespace Microservicio.Vuelos.DataAccess.Queries
             public int IdAsiento { get; set; }
             public string NumeroAsiento { get; set; } = string.Empty;
             public string Clase { get; set; } = string.Empty;
+        }
+
+        public class ReservaDetalleDto
+        {
+            public int IdDetalle { get; set; }
+            public PasajeroDto Pasajero { get; set; } = new();
+            public AsientoDto Asiento { get; set; } = new();
         }
 
         public class FacturaDto
@@ -109,14 +115,6 @@ namespace Microservicio.Vuelos.DataAccess.Queries
                         Correo = r.Cliente.Correo,
                         Telefono = r.Cliente.Telefono
                     },
-                    Pasajero = new PasajeroDto
-                    {
-                        IdPasajero = r.Pasajero.IdPasajero,
-                        NombrePasajero = r.Pasajero.NombrePasajero,
-                        ApellidoPasajero = r.Pasajero.ApellidoPasajero,
-                        TipoDocumentoPasajero = r.Pasajero.TipoDocumentoPasajero,
-                        NumeroDocumentoPasajero = r.Pasajero.NumeroDocumentoPasajero
-                    },
                     Vuelo = new VueloDto
                     {
                         IdVuelo = r.Vuelo.IdVuelo,
@@ -126,12 +124,26 @@ namespace Microservicio.Vuelos.DataAccess.Queries
                         AeropuertoOrigen = r.Vuelo.AeropuertoOrigen.Nombre,
                         AeropuertoDestino = r.Vuelo.AeropuertoDestino.Nombre
                     },
-                    Asiento = new AsientoDto
-                    {
-                        IdAsiento = r.Asiento.IdAsiento,
-                        NumeroAsiento = r.Asiento.NumeroAsiento,
-                        Clase = r.Asiento.Clase
-                    },
+                    Detalles = r.Detalles
+                        .Where(d => !d.EsEliminado)
+                        .Select(d => new ReservaDetalleDto
+                        {
+                            IdDetalle = d.IdDetalle,
+                            Pasajero = new PasajeroDto
+                            {
+                                IdPasajero = d.Pasajero.IdPasajero,
+                                NombrePasajero = d.Pasajero.NombrePasajero,
+                                ApellidoPasajero = d.Pasajero.ApellidoPasajero,
+                                TipoDocumentoPasajero = d.Pasajero.TipoDocumentoPasajero,
+                                NumeroDocumentoPasajero = d.Pasajero.NumeroDocumentoPasajero
+                            },
+                            Asiento = new AsientoDto
+                            {
+                                IdAsiento = d.Asiento.IdAsiento,
+                                NumeroAsiento = d.Asiento.NumeroAsiento,
+                                Clase = d.Asiento.Clase
+                            }
+                        }).ToList(),
                     Facturas = r.Facturas
                         .Where(f => !f.EsEliminado)
                         .Select(f => new FacturaDto
@@ -180,14 +192,6 @@ namespace Microservicio.Vuelos.DataAccess.Queries
                         Correo = r.Cliente.Correo,
                         Telefono = r.Cliente.Telefono
                     },
-                    Pasajero = new PasajeroDto
-                    {
-                        IdPasajero = r.Pasajero.IdPasajero,
-                        NombrePasajero = r.Pasajero.NombrePasajero,
-                        ApellidoPasajero = r.Pasajero.ApellidoPasajero,
-                        TipoDocumentoPasajero = r.Pasajero.TipoDocumentoPasajero,
-                        NumeroDocumentoPasajero = r.Pasajero.NumeroDocumentoPasajero
-                    },
                     Vuelo = new VueloDto
                     {
                         IdVuelo = r.Vuelo.IdVuelo,
@@ -197,12 +201,26 @@ namespace Microservicio.Vuelos.DataAccess.Queries
                         AeropuertoOrigen = r.Vuelo.AeropuertoOrigen.Nombre,
                         AeropuertoDestino = r.Vuelo.AeropuertoDestino.Nombre
                     },
-                    Asiento = new AsientoDto
-                    {
-                        IdAsiento = r.Asiento.IdAsiento,
-                        NumeroAsiento = r.Asiento.NumeroAsiento,
-                        Clase = r.Asiento.Clase
-                    },
+                    Detalles = r.Detalles
+                        .Where(d => !d.EsEliminado)
+                        .Select(d => new ReservaDetalleDto
+                        {
+                            IdDetalle = d.IdDetalle,
+                            Pasajero = new PasajeroDto
+                            {
+                                IdPasajero = d.Pasajero.IdPasajero,
+                                NombrePasajero = d.Pasajero.NombrePasajero,
+                                ApellidoPasajero = d.Pasajero.ApellidoPasajero,
+                                TipoDocumentoPasajero = d.Pasajero.TipoDocumentoPasajero,
+                                NumeroDocumentoPasajero = d.Pasajero.NumeroDocumentoPasajero
+                            },
+                            Asiento = new AsientoDto
+                            {
+                                IdAsiento = d.Asiento.IdAsiento,
+                                NumeroAsiento = d.Asiento.NumeroAsiento,
+                                Clase = d.Asiento.Clase
+                            }
+                        }).ToList(),
                     Facturas = r.Facturas
                         .Where(f => !f.EsEliminado)
                         .Select(f => new FacturaDto
@@ -249,7 +267,10 @@ namespace Microservicio.Vuelos.DataAccess.Queries
                     EstadoReserva = r.EstadoReserva,
                     TotalReserva = r.TotalReserva,
                     FechaReservaUtc = r.FechaReservaUtc,
-                    Pasajero = r.Pasajero.NombrePasajero + " " + r.Pasajero.ApellidoPasajero
+                    Pasajero = r.Detalles
+                        .Where(d => !d.EsEliminado)
+                        .Select(d => d.Pasajero.NombrePasajero + " " + d.Pasajero.ApellidoPasajero)
+                        .FirstOrDefault() ?? string.Empty
                 })
                 .ToListAsync(cancellationToken);
         }
@@ -272,7 +293,10 @@ namespace Microservicio.Vuelos.DataAccess.Queries
                     EstadoReserva = r.EstadoReserva,
                     TotalReserva = r.TotalReserva,
                     FechaReservaUtc = r.FechaReservaUtc,
-                    Pasajero = r.Pasajero.NombrePasajero + " " + r.Pasajero.ApellidoPasajero
+                    Pasajero = r.Detalles
+                        .Where(d => !d.EsEliminado)
+                        .Select(d => d.Pasajero.NombrePasajero + " " + d.Pasajero.ApellidoPasajero)
+                        .FirstOrDefault() ?? string.Empty
                 })
                 .ToListAsync(cancellationToken);
         }

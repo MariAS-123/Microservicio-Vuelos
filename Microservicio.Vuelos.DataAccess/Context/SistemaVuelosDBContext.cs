@@ -25,6 +25,7 @@ namespace Microservicio.Vuelos.DataAccess.Context
 
         public DbSet<PasajeroEntity> Pasajeros => Set<PasajeroEntity>();
         public DbSet<ReservaEntity> Reservas => Set<ReservaEntity>();
+        public DbSet<ReservaDetalleEntity> ReservaDetalles => Set<ReservaDetalleEntity>();
         public DbSet<FacturaEntity> Facturas => Set<FacturaEntity>();
         public DbSet<BoletoEntity> Boletos => Set<BoletoEntity>();
         public DbSet<EquipajeEntity> Equipajes => Set<EquipajeEntity>();

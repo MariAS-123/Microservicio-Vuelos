@@ -11,7 +11,6 @@ public class ReservaValidator
         "PEN",
         "CON",
         "CAN",
-        "EXP",
         "FIN",
         "EMI"
     ];
@@ -32,23 +31,11 @@ public class ReservaValidator
         if (dto.IdCliente <= 0)
             errors.Add("El cliente es obligatorio.");
 
-        if (dto.IdPasajero <= 0)
-            errors.Add("El pasajero es obligatorio.");
-
         if (dto.IdVuelo <= 0)
             errors.Add("El vuelo es obligatorio.");
 
-        if (dto.IdAsiento <= 0)
-            errors.Add("El asiento es obligatorio.");
-
-        if (dto.FechaInicio == default)
-            errors.Add("La fecha de inicio es obligatoria.");
-
-        if (dto.FechaFin == default)
-            errors.Add("La fecha de fin es obligatoria.");
-
-        if (dto.FechaInicio != default &&
-            dto.FechaFin != default &&
+        if (dto.FechaInicio.HasValue &&
+            dto.FechaFin.HasValue &&
             dto.FechaFin <= dto.FechaInicio)
         {
             errors.Add("La fecha de fin debe ser mayor que la fecha de inicio.");
@@ -56,6 +43,37 @@ public class ReservaValidator
 
         if (dto.SubtotalReserva < 0)
             errors.Add("El subtotal de la reserva no puede ser negativo.");
+
+        if (dto.Detalles.Count == 0)
+        {
+            if (dto.IdPasajero <= 0)
+                errors.Add("El pasajero es obligatorio.");
+
+            if (dto.IdAsiento <= 0)
+                errors.Add("El asiento es obligatorio.");
+        }
+        else
+        {
+            for (var i = 0; i < dto.Detalles.Count; i++)
+            {
+                var detalle = dto.Detalles[i];
+
+                if (detalle.IdPasajero <= 0)
+                    errors.Add($"El pasajero del detalle {i + 1} es obligatorio.");
+
+                if (detalle.IdAsiento <= 0)
+                    errors.Add($"El asiento del detalle {i + 1} es obligatorio.");
+
+                if (detalle.SubtotalLinea < 0)
+                    errors.Add($"El subtotal del detalle {i + 1} no puede ser negativo.");
+
+                if (detalle.ValorIvaLinea < 0)
+                    errors.Add($"El IVA del detalle {i + 1} no puede ser negativo.");
+
+                if (detalle.TotalLinea < 0)
+                    errors.Add($"El total del detalle {i + 1} no puede ser negativo.");
+            }
+        }
 
         // IVA y total se calculan en backend (15%), no se validan desde el request.
 
@@ -100,7 +118,7 @@ public class ReservaValidator
             var estado = dto.EstadoReserva.Trim().ToUpperInvariant();
 
             if (!EstadosValidos.Contains(estado))
-                errors.Add("El estado de la reserva debe ser PEN, CON, CAN, EXP, FIN o EMI.");
+                errors.Add("El estado de la reserva debe ser PEN, CON, CAN, FIN o EMI.");
 
             if (estado == "CAN" && string.IsNullOrWhiteSpace(dto.MotivoCancelacion))
                 errors.Add("El motivo de cancelación es obligatorio cuando el estado es CAN.");
@@ -141,7 +159,7 @@ public class ReservaValidator
             var estado = dto.EstadoReserva.Trim().ToUpperInvariant();
 
             if (!EstadosValidos.Contains(estado))
-                errors.Add("El estado de la reserva debe ser PEN, CON, CAN, EXP, FIN o EMI.");
+                errors.Add("El estado de la reserva debe ser PEN, CON, CAN, FIN o EMI.");
         }
 
         if (dto.Page <= 0)
