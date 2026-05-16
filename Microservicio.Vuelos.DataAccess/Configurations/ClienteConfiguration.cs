@@ -19,7 +19,7 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
             builder.Property(e => e.ClienteGuid)
                 .HasColumnName("cliente_guid")
                 .IsRequired()
-                .HasDefaultValueSql("NEWID()");
+                .HasDefaultValueSql("gen_random_uuid()");
 
             builder.Property(e => e.TipoIdentificacion)
                 .HasColumnName("tipo_identificacion")
@@ -104,9 +104,9 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
 
             builder.Property(e => e.FechaRegistroUtc)
                 .HasColumnName("fecha_registro_utc")
-                .HasColumnType("datetime2(0)")
+                .HasColumnType("timestamp")
                 .IsRequired()
-                .HasDefaultValueSql("SYSUTCDATETIME()");
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             builder.Property(e => e.ModificadoPorUsuario)
                 .HasColumnName("modificado_por_usuario")
@@ -115,7 +115,7 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
 
             builder.Property(e => e.FechaModificacionUtc)
                 .HasColumnName("fecha_modificacion_utc")
-                .HasColumnType("datetime2(0)");
+                .HasColumnType("timestamp");
 
             builder.Property(e => e.ModificacionIp)
                 .HasColumnName("modificacion_ip")
@@ -131,7 +131,7 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
 
             builder.Property(e => e.FechaInhabilitacionUtc)
                 .HasColumnName("fecha_inhabilitacion_utc")
-                .HasColumnType("datetime2(0)");
+                .HasColumnType("timestamp");
 
             builder.Property(e => e.MotivoInhabilitacion)
                 .HasColumnName("motivo_inhabilitacion")

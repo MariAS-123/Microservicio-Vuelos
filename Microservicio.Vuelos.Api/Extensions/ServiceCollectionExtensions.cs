@@ -37,12 +37,12 @@ public static class ServiceCollectionExtensions
 
         services.AddDbContext<SistemaVuelosDBContext>(options =>
         {
-            options.UseSqlServer(connectionString, sqlOptions =>
+            options.UseNpgsql(connectionString, npgsqlOptions =>
             {
-                sqlOptions.EnableRetryOnFailure(
+                npgsqlOptions.EnableRetryOnFailure(
                     maxRetryCount: 5,
                     maxRetryDelay: TimeSpan.FromSeconds(10),
-                    errorNumbersToAdd: null);
+                    errorCodesToAdd: null);
             });
         });
     }

@@ -19,7 +19,7 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
             builder.Property(e => e.AuditoriaGuid)
                 .HasColumnName("auditoria_guid")
                 .IsRequired()
-                .HasDefaultValueSql("NEWID()");
+                .HasDefaultValueSql("gen_random_uuid()");
 
             builder.Property(e => e.TablaAfectada)
                 .HasColumnName("tabla_afectada")
@@ -40,18 +40,18 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
 
             builder.Property(e => e.DatosAnteriores)
                 .HasColumnName("datos_anteriores")
-                .HasColumnType("nvarchar(max)");
+                .HasColumnType("text");
 
             builder.Property(e => e.DatosNuevos)
                 .HasColumnName("datos_nuevos")
-                .HasColumnType("nvarchar(max)");
+                .HasColumnType("text");
 
             builder.Property(e => e.UsuarioEjecutor)
                 .HasColumnName("usuario_ejecutor")
                 .HasMaxLength(100)
                 .IsUnicode(false)
                 .IsRequired()
-                .HasDefaultValueSql("SYSTEM_USER");
+                .HasDefaultValueSql("'SYSTEM'");
 
             builder.Property(e => e.IpOrigen)
                 .HasColumnName("ip_origen")
@@ -60,9 +60,9 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
 
             builder.Property(e => e.FechaEventoUtc)
                 .HasColumnName("fecha_evento_utc")
-                .HasColumnType("datetime2(0)")
+                .HasColumnType("timestamp")
                 .IsRequired()
-                .HasDefaultValueSql("SYSUTCDATETIME()");
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             builder.Property(e => e.Activo)
                 .HasColumnName("activo")

@@ -34,12 +34,12 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
 
             builder.Property(e => e.FechaHoraLlegada)
                 .HasColumnName("fecha_hora_llegada")
-                .HasColumnType("datetime2(0)")
+                .HasColumnType("timestamp")
                 .IsRequired();
 
             builder.Property(e => e.FechaHoraSalida)
                 .HasColumnName("fecha_hora_salida")
-                .HasColumnType("datetime2(0)")
+                .HasColumnType("timestamp")
                 .IsRequired();
 
             builder.Property(e => e.DuracionMin)
@@ -83,9 +83,9 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
 
             builder.Property(e => e.FechaRegistroUtc)
                 .HasColumnName("fecha_registro_utc")
-                .HasColumnType("datetime2(0)")
+                .HasColumnType("timestamp")
                 .IsRequired()
-                .HasDefaultValueSql("SYSUTCDATETIME()");
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             builder.Property(e => e.CreadoPorUsuario)
                 .HasColumnName("creado_por_usuario")
@@ -101,7 +101,7 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
 
             builder.Property(e => e.FechaModificacionUtc)
                 .HasColumnName("fecha_modificacion_utc")
-                .HasColumnType("datetime2(0)");
+                .HasColumnType("timestamp");
 
             builder.Property(e => e.ModificacionIp)
                 .HasColumnName("modificacion_ip")

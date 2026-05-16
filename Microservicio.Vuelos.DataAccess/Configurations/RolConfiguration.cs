@@ -19,7 +19,7 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
             builder.Property(e => e.RolGuid)
                 .HasColumnName("rol_guid")
                 .IsRequired()
-                .HasDefaultValueSql("NEWID()");
+                .HasDefaultValueSql("gen_random_uuid()");
 
             builder.Property(e => e.NombreRol)
                 .HasColumnName("nombre_rol")
@@ -57,9 +57,9 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
 
             builder.Property(e => e.FechaRegistroUtc)
                 .HasColumnName("fecha_registro_utc")
-                .HasColumnType("datetime2(0)")
+                .HasColumnType("timestamp")
                 .IsRequired()
-                .HasDefaultValueSql("SYSUTCDATETIME()");
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             builder.Property(e => e.ModificadoPorUsuario)
                 .HasColumnName("modificado_por_usuario")
@@ -68,7 +68,7 @@ namespace Microservicio.Vuelos.DataAccess.Configurations
 
             builder.Property(e => e.FechaModificacionUtc)
                 .HasColumnName("fecha_modificacion_utc")
-                .HasColumnType("datetime2(0)");
+                .HasColumnType("timestamp");
 
             builder.Property(e => e.RowVersion)
                 .HasColumnName("row_version")

@@ -48,7 +48,7 @@ namespace Microservicio.Vuelos.DataAccess.Repositories
                 .Include(u => u.UsuariosRoles)
                     .ThenInclude(ur => ur.Rol)
                 .FirstOrDefaultAsync(
-                    u => EF.Functions.Collate(u.Username, "Latin1_General_CS_AS") == exactUsername &&
+                    u => u.Username == exactUsername &&
                          !u.EsEliminado,
                     cancellationToken);
         }
